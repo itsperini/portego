@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  addFixture,
+  addDevice,
   addOpening,
   addRoom,
   applyHomeChanges,
   applyReportedState,
-  bindFixtureToEndpoint,
+  bindDeviceToEndpoint,
   createDemoHome,
-  endpointForFixture,
-  moveFixture,
+  endpointForDevice,
+  moveDevice,
   removeFloor,
   removeRoom,
-  setDesiredFixtureState,
-  unbindFixture,
-  updateFixture,
+  setDesiredDeviceState,
+  unbindDevice,
+  updateDevice,
   updateFloorDetails,
   updateHomeDetails,
   updateRoomGeometry,
@@ -44,32 +44,67 @@ describe("home model", () => {
     expect(home.rooms).toHaveLength(0);
   });
 
-  it("keeps a fixture independent from its automatically bound endpoint", () => {
+  it("keeps a device independent from its automatically bound endpoint", () => {
     let home = createDemoHome();
     home = addRoom(home, { label: "Kitchen" });
-    home = addFixture(home, {
+    home = addDevice(home, {
       roomLabel: "Kitchen",
       label: "Kitchen ceiling",
       type: "light",
     });
 
-    const fixture = home.fixtures[0];
-    expect(fixture?.label).toBe("Kitchen ceiling");
-    expect(fixture && endpointForFixture(home, fixture.id)?.id).toBe("endpoint_sim_light_1");
+    const device = home.devices[0];
+    expect(device?.label).toBe("Kitchen ceiling");
+    expect(device && endpointForDevice(home, device.id)?.id).toBe("endpoint_sim_light_1");
     expect(home.bindings).toHaveLength(1);
+  });
+
+  it("derives capabilities from device configuration and removes incompatible bindings", () => {
+    let home = createDemoHome();
+    home = addRoom(home, { label: "Office" });
+    home = addDevice(home, {
+      roomLabel: "Office",
+      label: "Desk plug",
+      type: "plug",
+      config: { energyMonitoring: true },
+    });
+
+    expect(home.devices[0]).toMatchObject({
+      type: "plug",
+      config: { energyMonitoring: true },
+      capabilities: ["power", "energy"],
+    });
+    expect(endpointForDevice(home, home.devices[0]?.id ?? "")?.id).toBe("endpoint_sim_plug_1");
+
+    home = updateDevice(home, {
+      deviceLabel: "Desk plug",
+      type: "sensor",
+      config: { measures: ["temperature", "occupancy"] },
+    });
+    expect(home.devices[0]).toMatchObject({
+      type: "sensor",
+      capabilities: ["temperature", "occupancy"],
+    });
+    expect(home.bindings).toHaveLength(0);
+    expect(() =>
+      bindDeviceToEndpoint(home, {
+        deviceLabel: "Desk plug",
+        endpointLabel: "Simulator light 01",
+      }),
+    ).toThrow("every capability");
   });
 
   it("separates desired state from confirmed reported state", () => {
     let home = createDemoHome();
     home = addRoom(home, { label: "Kitchen" });
-    home = addFixture(home, {
+    home = addDevice(home, {
       roomLabel: "Kitchen",
       label: "Kitchen ceiling",
       type: "light",
     });
 
-    const desired = setDesiredFixtureState(home, {
-      fixtureLabel: "Kitchen ceiling",
+    const desired = setDesiredDeviceState(home, {
+      deviceLabel: "Kitchen ceiling",
       on: true,
       brightness: 40,
     });
@@ -80,10 +115,10 @@ describe("home model", () => {
     expect(home.endpoints[0]?.reportedState).toMatchObject({ on: true, brightness: 40 });
   });
 
-  it("keeps geometry semantic when rooms and fixtures move", () => {
+  it("keeps geometry semantic when rooms and devices move", () => {
     let home = createDemoHome();
     home = addRoom(home, { label: "Kitchen", x: 100, y: 100, width: 300, height: 200 });
-    home = addFixture(home, {
+    home = addDevice(home, {
       roomLabel: "Kitchen",
       label: "Kitchen ceiling",
       type: "light",
@@ -96,30 +131,30 @@ describe("home model", () => {
       width: 400,
       height: 240,
     });
-    expect(home.fixtures[0]?.position).toEqual({ x: 400, y: 280 });
+    expect(home.devices[0]?.position).toEqual({ x: 400, y: 280 });
 
-    home = moveFixture(home, { fixtureLabel: "Kitchen ceiling", x: 999, y: 0 });
-    expect(home.fixtures[0]?.position).toEqual({ x: 572, y: 188 });
+    home = moveDevice(home, { deviceLabel: "Kitchen ceiling", x: 999, y: 0 });
+    expect(home.devices[0]?.position).toEqual({ x: 572, y: 188 });
   });
 
   it("renames, reassigns, binds, relates, and removes home objects", () => {
     let home = createDemoHome();
     home = addRoom(home, { label: "Kitchen", x: 0, y: 0, width: 300, height: 200 });
     home = addRoom(home, { label: "Hall", x: 300, y: 0, width: 200, height: 200 });
-    home = addFixture(home, {
+    home = addDevice(home, {
       roomLabel: "Kitchen",
       label: "Ceiling light",
       type: "light",
       autoBind: false,
     });
     home = updateRoomGeometry(home, { roomLabel: "Hall", label: "Entry" });
-    home = updateFixture(home, {
-      fixtureLabel: "Ceiling light",
+    home = updateDevice(home, {
+      deviceLabel: "Ceiling light",
       label: "Entry light",
       roomLabel: "Entry",
     });
-    home = bindFixtureToEndpoint(home, {
-      fixtureLabel: "Entry light",
+    home = bindDeviceToEndpoint(home, {
+      deviceLabel: "Entry light",
       endpointLabel: "Simulator light 01",
     });
     home = addOpening(home, {
@@ -130,14 +165,14 @@ describe("home model", () => {
       wall: "right",
     });
 
-    expect(home.fixtures[0]).toMatchObject({ label: "Entry light", roomId: home.rooms[1]?.id });
+    expect(home.devices[0]).toMatchObject({ label: "Entry light", roomId: home.rooms[1]?.id });
     expect(home.bindings).toHaveLength(1);
     expect(home.openings[0]).toMatchObject({ type: "door", connectsToRoomId: home.rooms[1]?.id });
 
-    home = unbindFixture(home, { fixtureLabel: "Entry light" });
+    home = unbindDevice(home, { deviceLabel: "Entry light" });
     expect(home.bindings).toHaveLength(0);
     home = removeRoom(home, { roomLabel: "Entry" });
-    expect(home.fixtures).toHaveLength(0);
+    expect(home.devices).toHaveLength(0);
     expect(home.openings).toHaveLength(0);
   });
 
@@ -147,13 +182,13 @@ describe("home model", () => {
       changes: [
         { op: "add_room", input: { label: "Studio" } },
         {
-          op: "add_fixture",
+          op: "add_device",
           input: { roomLabel: "Studio", label: "Desk light", type: "light" },
         },
       ],
     });
     expect(complete.rooms).toHaveLength(1);
-    expect(complete.fixtures).toHaveLength(1);
+    expect(complete.devices).toHaveLength(1);
     expect(original.rooms).toHaveLength(0);
 
     expect(() =>

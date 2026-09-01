@@ -1,42 +1,196 @@
 "use client";
 
 import {
-  endpointForFixture,
-  type Fixture,
+  capabilitiesForDevice,
+  type Device,
+  type DeviceConfig,
+  type DeviceType,
+  endpointForDevice,
+  endpointSupportsDevice,
   type Floor,
   type HomeDocument,
+  normalizeDeviceConfig,
   type OpeningType,
   type Room,
+  type UpdateDeviceInput,
   type UpdateFloorDetailsInput,
   type UpdateHomeDetailsInput,
   type WallSide,
 } from "@portego/home-model";
 import {
+  Activity,
   ChevronDown,
   DoorOpen,
   Lightbulb,
   PanelRightOpen,
+  Plug,
   Plus,
+  ToggleLeft,
   Trash2,
   Unlink,
   X,
 } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortegoHome } from "../hooks/use-portego-home";
 import { useWebMcp } from "../hooks/use-webmcp";
 import { HomeCanvas } from "./home-canvas";
 
-type FixtureCardProps = {
+type DeviceCardProps = {
   home: HomeDocument;
-  fixture: Fixture;
+  device: Device;
   busy: boolean;
   onClose: () => void;
-  onUpdate: (input: { label?: string; roomId?: string }) => void;
+  onUpdate: (input: Omit<UpdateDeviceInput, "deviceId" | "deviceLabel">) => void;
   onRemove: () => void;
   onBind: (endpointId: string) => void;
   onUnbind: () => void;
   onSetState: (state: { on?: boolean; brightness?: number }) => void;
 };
+
+const deviceTypeLabels: Record<DeviceType, string> = {
+  light: "Light",
+  switch: "Switch",
+  plug: "Smart plug",
+  sensor: "Sensor",
+};
+
+function DeviceTypeIcon({ type, size = 16 }: { type: DeviceType; size?: number }) {
+  switch (type) {
+    case "light":
+      return <Lightbulb size={size} aria-hidden="true" />;
+    case "switch":
+      return <ToggleLeft size={size} aria-hidden="true" />;
+    case "plug":
+      return <Plug size={size} aria-hidden="true" />;
+    case "sensor":
+      return <Activity size={size} aria-hidden="true" />;
+  }
+}
+
+function DeviceConfigFields({
+  type,
+  config,
+  disabled,
+  onChange,
+}: {
+  type: DeviceType;
+  config: DeviceConfig;
+  disabled: boolean;
+  onChange: (config: DeviceConfig) => void;
+}) {
+  if (type === "light") {
+    return (
+      <div className="device-config-grid">
+        <label className="config-field">
+          <span>Mounting</span>
+          <select
+            value={config.mounting ?? "ceiling"}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange({ ...config, mounting: event.target.value as DeviceConfig["mounting"] })
+            }
+          >
+            <option value="ceiling">Ceiling</option>
+            <option value="wall">Wall</option>
+            <option value="table">Table</option>
+            <option value="floor">Floor</option>
+          </select>
+        </label>
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={config.dimmable ?? false}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...config, dimmable: event.target.checked })}
+          />
+          <span>Dimmable</span>
+        </label>
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={config.colorTemperature ?? false}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...config, colorTemperature: event.target.checked })}
+          />
+          <span>Adjustable color temperature</span>
+        </label>
+      </div>
+    );
+  }
+
+  if (type === "switch") {
+    return (
+      <div className="device-config-grid two-columns">
+        <label className="config-field">
+          <span>Switch mode</span>
+          <select
+            value={config.mode ?? "toggle"}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange({ ...config, mode: event.target.value as DeviceConfig["mode"] })
+            }
+          >
+            <option value="toggle">Toggle</option>
+            <option value="momentary">Momentary</option>
+            <option value="dimmer">Dimmer</option>
+          </select>
+        </label>
+        <label className="config-field">
+          <span>Channels</span>
+          <select
+            value={config.channels ?? 1}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...config, channels: Number(event.target.value) })}
+          >
+            {[1, 2, 3, 4].map((channel) => (
+              <option key={channel} value={channel}>
+                {channel}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    );
+  }
+
+  if (type === "plug") {
+    return (
+      <div className="device-config-grid">
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={config.energyMonitoring ?? false}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...config, energyMonitoring: event.target.checked })}
+          />
+          <span>Energy monitoring</span>
+        </label>
+      </div>
+    );
+  }
+
+  const measures = config.measures ?? ["temperature"];
+  return (
+    <fieldset className="device-measures" disabled={disabled}>
+      <legend>Measurements</legend>
+      {(["temperature", "occupancy", "contact"] as const).map((measure) => (
+        <label className="check-field" key={measure}>
+          <input
+            type="checkbox"
+            checked={measures.includes(measure)}
+            onChange={(event) => {
+              const next = event.target.checked
+                ? [...measures, measure]
+                : measures.filter((candidate) => candidate !== measure);
+              if (next.length > 0) onChange({ ...config, measures: next });
+            }}
+          />
+          <span>{measure[0]?.toUpperCase() + measure.slice(1)}</span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
 
 type FloorMiniMapProps = {
   home: HomeDocument;
@@ -249,9 +403,136 @@ function FloorDetailsCard({
   );
 }
 
-function FixtureCard({
+function AddDeviceCard({
   home,
-  fixture,
+  activeFloor,
+  busy,
+  onClose,
+  onAdd,
+}: {
+  home: HomeDocument;
+  activeFloor: string;
+  busy: boolean;
+  onClose: () => void;
+  onAdd: (input: {
+    roomId: string;
+    label: string;
+    type: DeviceType;
+    config: DeviceConfig;
+    autoBind: boolean;
+  }) => void;
+}) {
+  const floorRooms = home.rooms.filter((room) => room.floor === activeFloor);
+  const availableRooms = floorRooms.length > 0 ? floorRooms : home.rooms;
+  const [roomId, setRoomId] = useState(availableRooms[0]?.id ?? "");
+  const [label, setLabel] = useState("New light");
+  const [type, setType] = useState<DeviceType>("light");
+  const [config, setConfig] = useState<DeviceConfig>(() => normalizeDeviceConfig("light"));
+  const [autoBind, setAutoBind] = useState(true);
+
+  const changeType = (nextType: DeviceType) => {
+    setType(nextType);
+    setConfig(normalizeDeviceConfig(nextType));
+    setLabel((current) =>
+      /^New (light|switch|smart plug|sensor)$/i.test(current)
+        ? `New ${deviceTypeLabels[nextType].toLowerCase()}`
+        : current,
+    );
+  };
+
+  return (
+    <aside className="floating-object-card device-card" aria-label="Add device">
+      <header className="floating-card-header">
+        <div>
+          <span className="eyebrow">New device</span>
+          <strong>Configure before adding</strong>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Cancel adding a device">
+          <X size={15} />
+        </button>
+      </header>
+
+      <form
+        className="device-editor-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (roomId && label.trim()) {
+            onAdd({ roomId, label: label.trim(), type, config, autoBind });
+          }
+        }}
+      >
+        <label className="config-field">
+          <span>Name</span>
+          <input value={label} disabled={busy} onChange={(event) => setLabel(event.target.value)} />
+        </label>
+        <label className="config-field">
+          <span>Room</span>
+          <select
+            value={roomId}
+            disabled={busy}
+            onChange={(event) => setRoomId(event.target.value)}
+          >
+            {availableRooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.label} · {room.floor}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="config-field">
+          <span>Device type</span>
+          <select
+            value={type}
+            disabled={busy}
+            onChange={(event) => changeType(event.target.value as DeviceType)}
+          >
+            {(Object.keys(deviceTypeLabels) as DeviceType[]).map((deviceType) => (
+              <option key={deviceType} value={deviceType}>
+                {deviceTypeLabels[deviceType]}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="device-config-section">
+          <div className="device-config-heading">
+            <DeviceTypeIcon type={type} />
+            <span>{deviceTypeLabels[type]} configuration</span>
+          </div>
+          <DeviceConfigFields type={type} config={config} disabled={busy} onChange={setConfig} />
+        </div>
+
+        <label className="check-field auto-bind-field">
+          <input
+            type="checkbox"
+            checked={autoBind}
+            disabled={busy}
+            onChange={(event) => setAutoBind(event.target.checked)}
+          />
+          <span>Automatically bind compatible discovered hardware</span>
+        </label>
+
+        <div className="device-editor-actions">
+          <button className="secondary-action" type="button" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="primary-action"
+            type="submit"
+            disabled={busy || !roomId || !label.trim()}
+          >
+            <Plus size={15} />
+            Add device
+          </button>
+        </div>
+      </form>
+    </aside>
+  );
+}
+
+function DeviceCard({
+  home,
+  device,
   busy,
   onClose,
   onUpdate,
@@ -259,73 +540,131 @@ function FixtureCard({
   onBind,
   onUnbind,
   onSetState,
-}: FixtureCardProps) {
-  const endpoint = endpointForFixture(home, fixture.id);
-  const [label, setLabel] = useState(fixture.label);
+}: DeviceCardProps) {
+  const endpoint = endpointForDevice(home, device.id);
+  const [label, setLabel] = useState(device.label);
+  const [roomId, setRoomId] = useState(device.roomId);
+  const [type, setType] = useState<DeviceType>(device.type);
+  const [config, setConfig] = useState<DeviceConfig>(device.config);
   const [brightness, setBrightness] = useState(endpoint?.reportedState.brightness ?? 72);
 
   useEffect(() => {
-    setLabel(fixture.label);
+    setLabel(device.label);
+    setRoomId(device.roomId);
+    setType(device.type);
+    setConfig(device.config);
     setBrightness(endpoint?.reportedState.brightness ?? 72);
-  }, [endpoint?.reportedState.brightness, fixture.label]);
+  }, [endpoint?.reportedState.brightness, device]);
 
-  const submitLabel = (event: FormEvent) => {
-    event.preventDefault();
-    const next = label.trim();
-    if (next && next !== fixture.label) onUpdate({ label: next });
-  };
+  const draftCapabilities = capabilitiesForDevice(type, config);
+  const configurationChanged =
+    label.trim() !== device.label ||
+    roomId !== device.roomId ||
+    type !== device.type ||
+    JSON.stringify(config) !== JSON.stringify(device.config);
+  const bindingWillBeRemoved =
+    endpoint !== undefined &&
+    !draftCapabilities.every((capability) => endpoint.capabilities.includes(capability));
 
   return (
-    <aside className="floating-object-card fixture-card" aria-label={`${fixture.label} settings`}>
+    <aside className="floating-object-card device-card" aria-label={`${device.label} settings`}>
       <header className="floating-card-header">
         <div>
-          <span className="eyebrow">Fixture</span>
-          <strong>{fixture.label}</strong>
+          <span className="eyebrow">Device</span>
+          <strong>{device.label}</strong>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close fixture settings">
+        <button type="button" onClick={onClose} aria-label="Close device settings">
           <X size={15} />
         </button>
       </header>
 
-      <div className="fixture-card-status">
+      <div className="device-card-status">
         <span
-          className={endpoint?.reportedState.on ? "fixture-card-icon is-on" : "fixture-card-icon"}
+          className={endpoint?.reportedState.on ? "device-card-icon is-on" : "device-card-icon"}
         >
-          <Lightbulb size={20} />
+          <DeviceTypeIcon type={device.type} size={20} />
         </span>
         <div>
-          <strong>{endpoint?.reportedState.on ? "Light is on" : "Light is off"}</strong>
+          <strong>
+            {!endpoint
+              ? `${deviceTypeLabels[device.type]} is unbound`
+              : device.capabilities.includes("power")
+                ? `${deviceTypeLabels[device.type]} is ${endpoint?.reportedState.on ? "on" : "off"}`
+                : `${deviceTypeLabels[device.type]} status`}
+          </strong>
           <span>
-            {endpoint ? `${endpoint.label} · ${endpoint.protocol}` : "Designed fixture · unbound"}
+            {endpoint ? `${endpoint.label} · ${endpoint.protocol}` : "Designed device · unbound"}
           </span>
         </div>
         <i className={endpoint?.reachable ? "is-reachable" : ""} />
       </div>
 
-      <form className="floating-card-form" onSubmit={submitLabel}>
-        <label>
+      <form
+        className="device-editor-form existing-device-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (label.trim() && configurationChanged) {
+            onUpdate({ label: label.trim(), roomId, type, config });
+          }
+        }}
+      >
+        <label className="config-field">
           <span>Name</span>
           <input value={label} onChange={(event) => setLabel(event.target.value)} disabled={busy} />
         </label>
-        <button type="submit" disabled={busy || !label.trim() || label.trim() === fixture.label}>
-          Save name
+        <label className="config-field">
+          <span>Room</span>
+          <select
+            value={roomId}
+            disabled={busy}
+            onChange={(event) => setRoomId(event.target.value)}
+          >
+            {home.rooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="config-field">
+          <span>Device type</span>
+          <select
+            value={type}
+            disabled={busy}
+            onChange={(event) => {
+              const nextType = event.target.value as DeviceType;
+              setType(nextType);
+              setConfig(normalizeDeviceConfig(nextType));
+            }}
+          >
+            {(Object.keys(deviceTypeLabels) as DeviceType[]).map((deviceType) => (
+              <option key={deviceType} value={deviceType}>
+                {deviceTypeLabels[deviceType]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="device-config-section">
+          <div className="device-config-heading">
+            <DeviceTypeIcon type={type} />
+            <span>{deviceTypeLabels[type]} configuration</span>
+          </div>
+          <DeviceConfigFields type={type} config={config} disabled={busy} onChange={setConfig} />
+        </div>
+        {bindingWillBeRemoved ? (
+          <p className="binding-warning">
+            Applying this configuration will unbind {endpoint.label} because it is no longer
+            compatible.
+          </p>
+        ) : null}
+        <button
+          className="device-apply-button"
+          type="submit"
+          disabled={busy || !label.trim() || !configurationChanged}
+        >
+          Apply changes
         </button>
       </form>
-
-      <label className="config-field">
-        <span>Room</span>
-        <select
-          value={fixture.roomId}
-          disabled={busy}
-          onChange={(event) => onUpdate({ roomId: event.target.value })}
-        >
-          {home.rooms.map((room) => (
-            <option key={room.id} value={room.id}>
-              {room.label}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <label className="config-field">
         <span>Device binding</span>
@@ -336,33 +675,73 @@ function FixtureCard({
         >
           <option value="">Unbound</option>
           {home.endpoints.map((candidate) => (
-            <option key={candidate.id} value={candidate.id}>
+            <option
+              key={candidate.id}
+              value={candidate.id}
+              disabled={!endpointSupportsDevice(candidate, device)}
+            >
               {candidate.label}
-              {candidate.reachable ? " · online" : " · offline"}
+              {endpointSupportsDevice(candidate, device)
+                ? candidate.reachable
+                  ? " · online"
+                  : " · offline"
+                : " · incompatible"}
             </option>
           ))}
         </select>
       </label>
 
-      <div className="fixture-control-row">
-        <button
-          className={endpoint?.reportedState.on ? "power-button is-on" : "power-button"}
-          type="button"
-          disabled={!endpoint || busy}
-          onClick={() => onSetState({ on: !endpoint?.reportedState.on })}
-        >
-          <Lightbulb size={16} />
-          Turn {endpoint?.reportedState.on ? "off" : "on"}
-        </button>
-        {endpoint ? (
-          <button className="text-action" type="button" disabled={busy} onClick={onUnbind}>
-            <Unlink size={14} />
-            Unbind
+      {device.capabilities.includes("power") ? (
+        <div className="device-control-row">
+          <button
+            className={endpoint?.reportedState.on ? "power-button is-on" : "power-button"}
+            type="button"
+            disabled={!endpoint || busy}
+            onClick={() => onSetState({ on: !endpoint?.reportedState.on })}
+          >
+            <DeviceTypeIcon type={device.type} />
+            Turn {endpoint?.reportedState.on ? "off" : "on"}
           </button>
-        ) : null}
-      </div>
+          {endpoint ? (
+            <button className="text-action" type="button" disabled={busy} onClick={onUnbind}>
+              <Unlink size={14} />
+              Unbind
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      {fixture.capabilities.includes("brightness") ? (
+      {endpoint && device.type === "sensor" ? (
+        <div className="sensor-readings">
+          {device.capabilities.includes("temperature") ? (
+            <span>
+              <small>Temperature</small>
+              <strong>{endpoint.reportedState.temperature ?? "—"}°</strong>
+            </span>
+          ) : null}
+          {device.capabilities.includes("occupancy") ? (
+            <span>
+              <small>Occupancy</small>
+              <strong>{endpoint.reportedState.occupancy ? "Detected" : "Clear"}</strong>
+            </span>
+          ) : null}
+          {device.capabilities.includes("contact") ? (
+            <span>
+              <small>Contact</small>
+              <strong>{endpoint.reportedState.contact ? "Open" : "Closed"}</strong>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {endpoint && device.capabilities.includes("energy") ? (
+        <div className="energy-reading">
+          <span>Energy</span>
+          <strong>{endpoint.reportedState.energy ?? 0} Wh</strong>
+        </div>
+      ) : null}
+
+      {device.capabilities.includes("brightness") ? (
         <div className="brightness-control">
           <div>
             <span>Brightness</span>
@@ -388,7 +767,7 @@ function FixtureCard({
 
       <footer className="floating-card-footer">
         <span>
-          Position {Math.round(fixture.position.x)}, {Math.round(fixture.position.y)}
+          Position {Math.round(device.position.x)}, {Math.round(device.position.y)}
         </span>
         <button className="danger-action" type="button" disabled={busy} onClick={onRemove}>
           <Trash2 size={14} />
@@ -464,7 +843,7 @@ function RoomCard({
       <div className="room-dimensions">
         <span>{Math.round(room.width / 40)} m wide</span>
         <span>{Math.round(room.height / 40)} m deep</span>
-        <span>{home.fixtures.filter((fixture) => fixture.roomId === room.id).length} fixtures</span>
+        <span>{home.devices.filter((device) => device.roomId === room.id).length} devices</span>
       </div>
 
       <div className="opening-builder">
@@ -565,25 +944,26 @@ export function PortegoWorkspace() {
     updateFloorDetails,
     removeFloor,
     addRoom,
-    addFixture,
+    addDevice,
     updateRoom,
     removeRoom,
-    moveFixture,
-    updateFixture,
-    removeFixture,
-    bindFixture,
-    unbindFixture,
+    moveDevice,
+    updateDevice,
+    removeDevice,
+    bindDevice,
+    unbindDevice,
     addOpening,
     removeOpening,
     applyChanges,
     undo,
     redo,
-    setFixtureState,
+    setDeviceState,
     reset,
   } = usePortegoHome();
-  const [selectedFixtureId, setSelectedFixtureId] = useState<string>();
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>();
   const [selectedRoomId, setSelectedRoomId] = useState<string>();
   const [selectedDetails, setSelectedDetails] = useState<"home" | "floor">();
+  const [addingDevice, setAddingDevice] = useState(false);
   const [inspectorExpanded, setInspectorExpanded] = useState(false);
   const [activeFloor, setActiveFloor] = useState("Ground floor");
   const [activeFloorExpanded, setActiveFloorExpanded] = useState(true);
@@ -603,18 +983,18 @@ export function PortegoWorkspace() {
       addRoom,
       updateRoom,
       removeRoom,
-      addFixture,
-      moveFixture,
-      updateFixture,
-      removeFixture,
-      bindFixture,
-      unbindFixture,
+      addDevice,
+      moveDevice,
+      updateDevice,
+      removeDevice,
+      bindDevice,
+      unbindDevice,
       addOpening,
       removeOpening,
       applyChanges,
       undo,
       redo,
-      setFixtureState,
+      setDeviceState,
       reset,
     }),
     [
@@ -626,24 +1006,24 @@ export function PortegoWorkspace() {
       addRoom,
       updateRoom,
       removeRoom,
-      addFixture,
-      moveFixture,
-      updateFixture,
-      removeFixture,
-      bindFixture,
-      unbindFixture,
+      addDevice,
+      moveDevice,
+      updateDevice,
+      removeDevice,
+      bindDevice,
+      unbindDevice,
       addOpening,
       removeOpening,
       applyChanges,
       undo,
       redo,
-      setFixtureState,
+      setDeviceState,
       reset,
     ],
   );
   const onAgentActivity = useCallback((message: string) => setActivity(message), []);
   useWebMcp(webMcpActions, onAgentActivity);
-  const selectedFixture = home.fixtures.find((fixture) => fixture.id === selectedFixtureId);
+  const selectedDevice = home.devices.find((device) => device.id === selectedDeviceId);
   const selectedRoom = home.rooms.find((room) => room.id === selectedRoomId);
   const selectedFloor = home.floors.find((floor) => floor.name === activeFloor);
   const floors = useMemo(
@@ -664,7 +1044,7 @@ export function PortegoWorkspace() {
     () => ({
       ...home,
       rooms: home.rooms.filter((room) => visibleRoomIds.has(room.id)),
-      fixtures: home.fixtures.filter((fixture) => visibleRoomIds.has(fixture.roomId)),
+      devices: home.devices.filter((device) => visibleRoomIds.has(device.roomId)),
       openings: home.openings.filter((opening) => visibleRoomIds.has(opening.roomId)),
     }),
     [home, visibleRoomIds],
@@ -677,22 +1057,25 @@ export function PortegoWorkspace() {
     }
   }, [activeFloor, floors]);
 
-  const selectFixture = useCallback((fixtureId?: string) => {
+  const selectDevice = useCallback((deviceId?: string) => {
+    setAddingDevice(false);
     setSelectedDetails(undefined);
     setSelectedRoomId(undefined);
-    setSelectedFixtureId(fixtureId);
+    setSelectedDeviceId(deviceId);
     setInspectorExpanded(false);
   }, []);
 
   const selectRoom = useCallback((roomId?: string) => {
+    setAddingDevice(false);
     setSelectedDetails(undefined);
-    setSelectedFixtureId(undefined);
+    setSelectedDeviceId(undefined);
     setSelectedRoomId(roomId);
     setInspectorExpanded(false);
   }, []);
 
   const selectDetails = useCallback((details: "home" | "floor") => {
-    setSelectedFixtureId(undefined);
+    setAddingDevice(false);
+    setSelectedDeviceId(undefined);
     setSelectedRoomId(undefined);
     setSelectedDetails(details);
     setInspectorExpanded(true);
@@ -738,16 +1121,16 @@ export function PortegoWorkspace() {
         });
         const room = withRoom.rooms.at(-1);
         if (!room) return;
-        const complete = await addFixture({
+        const complete = await addDevice({
           roomId: room.id,
           label: "Kitchen ceiling",
           type: "light",
           autoBind: true,
         });
-        selectFixture(complete.fixtures.at(-1)?.id);
+        selectDevice(complete.devices.at(-1)?.id);
         setActivity("Kitchen ceiling is bound to Simulator light 01.");
       }),
-    [addFixture, addRoom, reset, run, selectFixture],
+    [addDevice, addRoom, reset, run, selectDevice],
   );
 
   const addNextRoom = useCallback(
@@ -760,59 +1143,71 @@ export function PortegoWorkspace() {
     [addRoom, home.rooms.length, run],
   );
 
-  const addLight = useCallback(
-    () =>
-      run(async () => {
-        let current = getHome();
-        if (current.rooms.length === 0) current = await addRoom({ label: "Kitchen" });
-        const room = current.rooms[0];
-        if (!room) return;
-        const roomLights = current.fixtures.filter((fixture) => fixture.roomId === room.id).length;
-        const label = `${room.label} light ${roomLights + 1}`;
-        const next = await addFixture({ roomId: room.id, label, type: "light", autoBind: true });
-        selectFixture(next.fixtures.at(-1)?.id);
-        setActivity(`${label} was added.`);
-      }),
-    [addFixture, addRoom, getHome, run, selectFixture],
-  );
+  const openAddDevice = useCallback(() => {
+    setSelectedDeviceId(undefined);
+    setSelectedRoomId(undefined);
+    setSelectedDetails(undefined);
+    setAddingDevice(true);
+    setInspectorExpanded(true);
+  }, []);
 
-  const floatingCard = selectedFixture ? (
-    <FixtureCard
-      key={selectedFixture.id}
+  const floatingCard = addingDevice ? (
+    <AddDeviceCard
       home={home}
-      fixture={selectedFixture}
+      activeFloor={activeFloor}
+      busy={busy}
+      onClose={() => {
+        setAddingDevice(false);
+        setInspectorExpanded(false);
+      }}
+      onAdd={(input) =>
+        void run(async () => {
+          const next = await addDevice(input);
+          const created = next.devices.at(-1);
+          setAddingDevice(false);
+          selectDevice(created?.id);
+          setInspectorExpanded(true);
+          setActivity(`${created?.label ?? "Device"} was added.`);
+        })
+      }
+    />
+  ) : selectedDevice ? (
+    <DeviceCard
+      key={selectedDevice.id}
+      home={home}
+      device={selectedDevice}
       busy={busy}
       onClose={() => setInspectorExpanded(false)}
       onUpdate={(input) =>
         void run(async () => {
-          const next = await updateFixture({ fixtureId: selectedFixture.id, ...input });
-          const updated = next.fixtures.find((fixture) => fixture.id === selectedFixture.id);
-          setActivity(`${updated?.label ?? "Fixture"} was updated.`);
+          const next = await updateDevice({ deviceId: selectedDevice.id, ...input });
+          const updated = next.devices.find((device) => device.id === selectedDevice.id);
+          setActivity(`${updated?.label ?? "Device"} was updated.`);
         })
       }
       onRemove={() =>
         void run(async () => {
-          await removeFixture({ fixtureId: selectedFixture.id });
-          selectFixture(undefined);
-          setActivity(`${selectedFixture.label} was removed.`);
+          await removeDevice({ deviceId: selectedDevice.id });
+          selectDevice(undefined);
+          setActivity(`${selectedDevice.label} was removed.`);
         })
       }
       onBind={(endpointId) =>
         void run(async () => {
-          await bindFixture({ fixtureId: selectedFixture.id, endpointId });
-          setActivity(`${selectedFixture.label} was bound.`);
+          await bindDevice({ deviceId: selectedDevice.id, endpointId });
+          setActivity(`${selectedDevice.label} was bound.`);
         })
       }
       onUnbind={() =>
         void run(async () => {
-          await unbindFixture({ fixtureId: selectedFixture.id });
-          setActivity(`${selectedFixture.label} is now unbound.`);
+          await unbindDevice({ deviceId: selectedDevice.id });
+          setActivity(`${selectedDevice.label} is now unbound.`);
         })
       }
       onSetState={(state) =>
         void run(async () => {
-          await setFixtureState({ fixtureId: selectedFixture.id, ...state });
-          setActivity(`${selectedFixture.label} confirmed the new state.`);
+          await setDeviceState({ deviceId: selectedDevice.id, ...state });
+          setActivity(`${selectedDevice.label} confirmed the new state.`);
         })
       }
     />
@@ -833,7 +1228,7 @@ export function PortegoWorkspace() {
         void run(async () => {
           await removeRoom({ roomId: selectedRoom.id });
           selectRoom(undefined);
-          setActivity(`${selectedRoom.label} and its fixtures were removed.`);
+          setActivity(`${selectedRoom.label} and its devices were removed.`);
         })
       }
       onAddOpening={(input) =>
@@ -900,15 +1295,15 @@ export function PortegoWorkspace() {
           <section className="rail-section structure-section">
             <div className="section-heading">
               <span>Home structure</span>
-              <strong>{home.rooms.length + home.fixtures.length}</strong>
+              <strong>{home.rooms.length + home.devices.length}</strong>
             </div>
             <nav className="structure-tree" aria-label="Home structure">
               <div className="floor-index-list">
                 {floors.map((floor, index) => {
                   const floorRooms = home.rooms.filter((room) => room.floor === floor);
                   const floorRoomIds = new Set(floorRooms.map((room) => room.id));
-                  const fixtureCount = home.fixtures.filter((fixture) =>
-                    floorRoomIds.has(fixture.roomId),
+                  const deviceCount = home.devices.filter((device) =>
+                    floorRoomIds.has(device.roomId),
                   ).length;
                   return (
                     <button
@@ -931,7 +1326,7 @@ export function PortegoWorkspace() {
                           />
                         </span>
                         <span>
-                          {floorRooms.length} rooms · {fixtureCount} fixtures
+                          {floorRooms.length} rooms · {deviceCount} devices
                         </span>
                       </span>
                       <FloorMiniMap home={home} floor={floor} />
@@ -947,9 +1342,7 @@ export function PortegoWorkspace() {
                     </p>
                   ) : (
                     visibleHome.rooms.map((room) => {
-                      const fixtures = home.fixtures.filter(
-                        (fixture) => fixture.roomId === room.id,
-                      );
+                      const devices = home.devices.filter((device) => device.roomId === room.id);
                       return (
                         <div className="tree-room" key={room.id}>
                           <button
@@ -959,19 +1352,19 @@ export function PortegoWorkspace() {
                           >
                             <span className="room-swatch" />
                             <span>{room.label}</span>
-                            <small>{fixtures.length}</small>
+                            <small>{devices.length}</small>
                           </button>
-                          {fixtures.map((fixture) => {
-                            const endpoint = endpointForFixture(home, fixture.id);
+                          {devices.map((device) => {
+                            const endpoint = endpointForDevice(home, device.id);
                             return (
                               <button
-                                className={`tree-fixture ${selectedFixtureId === fixture.id ? "is-selected" : ""}`}
+                                className={`tree-device ${selectedDeviceId === device.id ? "is-selected" : ""}`}
                                 type="button"
-                                key={fixture.id}
-                                onClick={() => selectFixture(fixture.id)}
+                                key={device.id}
+                                onClick={() => selectDevice(device.id)}
                               >
-                                <Lightbulb size={14} />
-                                <span>{fixture.label}</span>
+                                <DeviceTypeIcon type={device.type} size={14} />
+                                <span>{device.label}</span>
                                 <i className={endpoint?.reportedState.on ? "is-on" : ""} />
                               </button>
                             );
@@ -993,9 +1386,14 @@ export function PortegoWorkspace() {
               <Plus size={15} />
               Add a room
             </button>
-            <button type="button" onClick={addLight} disabled={busy}>
-              <Lightbulb size={15} />
-              Add a light
+            <button
+              type="button"
+              onClick={openAddDevice}
+              disabled={busy || home.rooms.length === 0}
+              title={home.rooms.length === 0 ? "Add a room before placing a device" : undefined}
+            >
+              <Plus size={15} />
+              Add a device
             </button>
           </section>
         </aside>
@@ -1003,9 +1401,9 @@ export function PortegoWorkspace() {
         <HomeCanvas
           home={visibleHome}
           floorName={activeFloor}
-          selectedFixtureId={selectedFixtureId}
+          selectedDeviceId={selectedDeviceId}
           selectedRoomId={selectedRoomId}
-          onSelectFixture={(fixture) => selectFixture(fixture?.id)}
+          onSelectDevice={(device) => selectDevice(device?.id)}
           onSelectRoom={(room) => selectRoom(room?.id)}
           onSelectHome={() => selectDetails("home")}
           onSelectFloor={() => {
@@ -1018,22 +1416,22 @@ export function PortegoWorkspace() {
               setActivity(`${room?.label ?? "Room"} snapped to the drafting grid.`);
             })
           }
-          onMoveFixture={(input) =>
+          onMoveDevice={(input) =>
             void run(async () => {
-              const next = await moveFixture(input);
-              const fixture = next.fixtures.find((candidate) => candidate.id === input.fixtureId);
-              setActivity(`${fixture?.label ?? "Fixture"} moved inside its room.`);
+              const next = await moveDevice(input);
+              const device = next.devices.find((candidate) => candidate.id === input.deviceId);
+              setActivity(`${device?.label ?? "Device"} moved inside its room.`);
             })
           }
-          onToggleFixture={(fixture) =>
+          onToggleDevice={(device) =>
             void run(async () => {
-              const endpoint = endpointForFixture(getHome(), fixture.id);
+              const endpoint = endpointForDevice(getHome(), device.id);
               if (!endpoint) {
-                setActivity(`${fixture.label} needs a device binding first.`);
+                setActivity(`${device.label} needs a device binding first.`);
                 return;
               }
-              await setFixtureState({ fixtureId: fixture.id, on: !endpoint.reportedState.on });
-              setActivity(`${fixture.label} changed state.`);
+              await setDeviceState({ deviceId: device.id, on: !endpoint.reportedState.on });
+              setActivity(`${device.label} changed state.`);
             })
           }
           onBuildDemo={() => void buildDemo()}
@@ -1064,17 +1462,17 @@ export function PortegoWorkspace() {
             <button
               className="property-rail-trigger"
               type="button"
-              disabled={!selectedFixture && !selectedRoom && !selectedDetails}
+              disabled={!addingDevice && !selectedDevice && !selectedRoom && !selectedDetails}
               onClick={() => setInspectorExpanded(true)}
               aria-label={
-                selectedFixture || selectedRoom || selectedDetails
-                  ? `Open properties for ${selectedFixture?.label ?? selectedRoom?.label ?? (selectedDetails === "home" ? home.name : activeFloor)}`
-                  : "Select a home, floor, room, or fixture to view properties"
+                selectedDevice || selectedRoom || selectedDetails
+                  ? `Open properties for ${selectedDevice?.label ?? selectedRoom?.label ?? (selectedDetails === "home" ? home.name : activeFloor)}`
+                  : "Select a home, floor, room, or device to view properties"
               }
             >
               <PanelRightOpen size={16} />
               <span>
-                {selectedFixture?.label ??
+                {selectedDevice?.label ??
                   selectedRoom?.label ??
                   (selectedDetails === "home"
                     ? home.name
@@ -1083,8 +1481,8 @@ export function PortegoWorkspace() {
                       : "Select item")}
               </span>
               <small>
-                {selectedFixture
-                  ? "Fixture"
+                {selectedDevice
+                  ? "Device"
                   : selectedRoom
                     ? "Room"
                     : selectedDetails === "home"

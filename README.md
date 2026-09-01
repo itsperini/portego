@@ -2,14 +2,14 @@
 
 Portego is a conversational control plane and digital twin for the smart home.
 Describe a home to an AI assistant, see it become a spatial model, bind physical
-devices to designed fixtures, and control those fixtures through MCP.
+hardware endpoints to designed devices, and control those devices through MCP.
 
 This repository contains every Portego runtime and shared contract. The first
 walking skeleton is deliberately small but complete:
 
-1. Codex adds a room and fixture through site tools (WebMCP).
+1. Codex adds a room and device through site tools (WebMCP).
 2. A simulated Linux gateway connects to the cloud service over WebSocket.
-3. The fixture binds to the discovered virtual light.
+3. The device binds to the discovered virtual light.
 4. The remote MCP tool controls the light.
 5. Confirmed reported state appears on the same canvas.
 
@@ -23,7 +23,7 @@ walking skeleton is deliberately small but complete:
     adapters/
       simulated/           deterministic virtual device adapter
     packages/
-      home-model/          rooms, fixtures, openings, bindings, state
+      home-model/          rooms, devices, openings, bindings, state
       gateway-protocol/    versioned cloud-gateway messages
     docs/
       architecture/        architecture decision records
@@ -31,12 +31,12 @@ walking skeleton is deliberately small but complete:
 
 The important separation is preserved in the domain model:
 
-    Room -> Fixture -> Binding -> DeviceEndpoint
+    Room -> Device -> Binding -> DeviceEndpoint
       \-> Opening -> related Room / outside
 
-A fixture represents the stable human intent (“Kitchen ceiling”). A device
-endpoint represents replaceable hardware. Automations and conversations should
-target fixtures rather than vendor identifiers.
+A designed device represents stable human intent (“Kitchen ceiling”). A device
+endpoint represents replaceable physical hardware. Automations and conversations
+target designed devices rather than vendor identifiers.
 
 ## Run locally
 
@@ -77,10 +77,10 @@ The top-level page registers 20 imperative site tools:
 - home.add_room
 - home.update_room
 - home.remove_room
-- home.add_fixture
-- home.move_fixture
-- home.update_fixture
-- home.remove_fixture
+- home.add_device
+- home.move_device
+- home.update_device
+- home.remove_device
 - home.add_opening
 - home.remove_opening
 - home.apply_changes
@@ -100,24 +100,29 @@ The center canvas uses `react-konva` as an interaction and rendering layer over
 the canonical `HomeDocument`. It supports:
 
 - multiple named floors, with a floor selector and floor-specific rooms;
-- dragging rooms and fixtures with a 20-unit grid snap;
+- dragging rooms and devices with a 20-unit grid snap;
 - resizing rooms with eight handles;
-- keeping fixtures constrained to their room;
-- renaming and individually removing rooms and fixtures;
-- moving fixtures between rooms;
+- keeping devices constrained to their room;
+- renaming and individually removing rooms and devices;
+- moving devices between rooms;
 - explicit device binding, unbinding, and reassignment;
+- configurable lights, switches, smart plugs, and sensors with type-specific controls;
+- type-specific canvas and navigation icons;
+- capability-safe hardware matching that rejects incomplete endpoints;
 - semantic doors and windows, including room-to-room relationships;
 - atomic conversational change sets with undo and redo;
 - pointer-centered wheel zoom and blank-space panning;
 - zoom controls and fit-to-home;
-- semantic room and fixture updates through the API and WebMCP.
+- semantic room and device updates through the API and WebMCP.
 
 The canvas breadcrumb opens home or floor details directly in the docked right
-inspector. Fixtures and rooms use the same contextual property rail for names,
-room assignment, device binding, power, brightness, removal, and wall openings.
+inspector. Devices and rooms use the same contextual property rail for names,
+room assignment, device type and configuration, hardware binding, capability-driven
+state controls, removal, and wall openings. **Add a device** opens a draft form;
+nothing is added until its room, type, and configuration are applied.
 Closing it gives the space back to the canvas while keeping the selection.
 
-Portego stores room and fixture geometry, not serialized Konva nodes. Manual,
+Portego stores room and device geometry, not serialized Konva nodes. Manual,
 API, and conversational edits therefore produce the same validated model.
 
 ## Check the repository

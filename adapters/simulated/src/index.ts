@@ -15,6 +15,13 @@ export class SimulatedAdapter implements DeviceAdapter {
   constructor(gatewayId = "gateway_sim_1") {
     this.#gatewayId = gatewayId;
     this.#states.set("endpoint_sim_light_1", { on: false, brightness: 72 });
+    this.#states.set("endpoint_sim_switch_1", { on: false });
+    this.#states.set("endpoint_sim_plug_1", { on: false, energy: 0 });
+    this.#states.set("endpoint_sim_sensor_1", {
+      temperature: 21.4,
+      occupancy: false,
+      contact: false,
+    });
   }
 
   async discover(): Promise<DeviceEndpoint[]> {
@@ -29,6 +36,39 @@ export class SimulatedAdapter implements DeviceAdapter {
         capabilities: ["power", "brightness"],
         desiredState: this.#states.get("endpoint_sim_light_1") ?? {},
         reportedState: this.#states.get("endpoint_sim_light_1") ?? {},
+        updatedAt: timestamp,
+      },
+      {
+        id: "endpoint_sim_switch_1",
+        gatewayId: this.#gatewayId,
+        label: "Simulator switch 01",
+        protocol: "simulated",
+        reachable: true,
+        capabilities: ["power"],
+        desiredState: this.#states.get("endpoint_sim_switch_1") ?? {},
+        reportedState: this.#states.get("endpoint_sim_switch_1") ?? {},
+        updatedAt: timestamp,
+      },
+      {
+        id: "endpoint_sim_plug_1",
+        gatewayId: this.#gatewayId,
+        label: "Simulator plug 01",
+        protocol: "simulated",
+        reachable: true,
+        capabilities: ["power", "energy"],
+        desiredState: this.#states.get("endpoint_sim_plug_1") ?? {},
+        reportedState: this.#states.get("endpoint_sim_plug_1") ?? {},
+        updatedAt: timestamp,
+      },
+      {
+        id: "endpoint_sim_sensor_1",
+        gatewayId: this.#gatewayId,
+        label: "Simulator multisensor 01",
+        protocol: "simulated",
+        reachable: true,
+        capabilities: ["temperature", "occupancy", "contact"],
+        desiredState: this.#states.get("endpoint_sim_sensor_1") ?? {},
+        reportedState: this.#states.get("endpoint_sim_sensor_1") ?? {},
         updatedAt: timestamp,
       },
     ];

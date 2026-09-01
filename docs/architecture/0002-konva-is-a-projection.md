@@ -8,7 +8,7 @@ Accepted
 
 The initial SVG floor plan proved that WebMCP changes could remain visible, but
 it did not provide the interactions expected from a spatial editor. Portego
-needs room movement and resizing, fixture placement, snapping, zooming, and
+needs room movement and resizing, device placement, snapping, zooming, and
 panning without coupling the product model to a browser rendering library.
 
 ## Decision
@@ -20,7 +20,7 @@ It does not own persisted state.
 Every completed gesture becomes a semantic domain command:
 
     room drag/resize -> updateRoomGeometry -> HomeDocument revision
-    fixture drag    -> moveFixture       -> HomeDocument revision
+    device drag    -> moveDevice       -> HomeDocument revision
     wall opening    -> addOpening        -> HomeDocument revision
 
 The same commands are exposed through HTTP and page-level WebMCP tools. The
@@ -28,7 +28,7 @@ server response remains authoritative. The browser-local fallback applies the
 same functions from `@portego/home-model`.
 
 The editor uses a 1000 by 650 document coordinate system and a 20-unit snap
-grid. Room changes preserve the relative placement of their fixtures. Fixture
+grid. Room changes preserve the relative placement of their devices. Device
 movement is clamped to the containing room.
 
 ## Consequences

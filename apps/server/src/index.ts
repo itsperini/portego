@@ -2,18 +2,18 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import {
-  addFixtureInputSchema,
+  addDeviceInputSchema,
   addOpeningInputSchema,
   addRoomInputSchema,
   applyHomeChangesInputSchema,
-  bindFixtureInputSchema,
-  removeFixtureInputSchema,
+  bindDeviceInputSchema,
+  removeDeviceInputSchema,
   removeFloorInputSchema,
   removeOpeningInputSchema,
   removeRoomInputSchema,
-  setFixtureStateInputSchema,
-  unbindFixtureInputSchema,
-  updateFixtureInputSchema,
+  setDeviceStateInputSchema,
+  unbindDeviceInputSchema,
+  updateDeviceInputSchema,
   updateFloorDetailsInputSchema,
   updateHomeDetailsInputSchema,
   updateRoomInputSchema,
@@ -127,11 +127,11 @@ const httpServer = createServer(async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && url.pathname === "/api/fixtures") {
+    if (request.method === "POST" && url.pathname === "/api/devices") {
       sendJson(
         response,
         201,
-        service.createFixture(addFixtureInputSchema.parse(await readJson(request))),
+        service.createDevice(addDeviceInputSchema.parse(await readJson(request))),
       );
       return;
     }
@@ -162,27 +162,27 @@ const httpServer = createServer(async (request, response) => {
       return;
     }
 
-    const fixtureMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)$/);
-    if (request.method === "PATCH" && fixtureMatch?.[1]) {
+    const deviceMatch = url.pathname.match(/^\/api\/devices\/([^/]+)$/);
+    if (request.method === "PATCH" && deviceMatch?.[1]) {
       const body = await readJson(request);
       sendJson(
         response,
         200,
-        service.updateFixture(
-          updateFixtureInputSchema.parse({
+        service.updateDevice(
+          updateDeviceInputSchema.parse({
             ...(typeof body === "object" && body !== null ? body : {}),
-            fixtureId: decodeURIComponent(fixtureMatch[1]),
+            deviceId: decodeURIComponent(deviceMatch[1]),
           }),
         ),
       );
       return;
     }
-    if (request.method === "DELETE" && fixtureMatch?.[1]) {
+    if (request.method === "DELETE" && deviceMatch?.[1]) {
       sendJson(
         response,
         200,
-        service.removeFixture(
-          removeFixtureInputSchema.parse({ fixtureId: decodeURIComponent(fixtureMatch[1]) }),
+        service.removeDevice(
+          removeDeviceInputSchema.parse({ deviceId: decodeURIComponent(deviceMatch[1]) }),
         ),
       );
       return;
@@ -192,7 +192,7 @@ const httpServer = createServer(async (request, response) => {
       sendJson(
         response,
         200,
-        service.bindFixture(bindFixtureInputSchema.parse(await readJson(request))),
+        service.bindDevice(bindDeviceInputSchema.parse(await readJson(request))),
       );
       return;
     }
@@ -202,8 +202,8 @@ const httpServer = createServer(async (request, response) => {
       sendJson(
         response,
         200,
-        service.unbindFixture(
-          unbindFixtureInputSchema.parse({ fixtureId: decodeURIComponent(bindingMatch[1]) }),
+        service.unbindDevice(
+          unbindDeviceInputSchema.parse({ deviceId: decodeURIComponent(bindingMatch[1]) }),
         ),
       );
       return;
@@ -256,8 +256,8 @@ const httpServer = createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/api/devices/state") {
-      const result = await service.setFixtureState(
-        setFixtureStateInputSchema.parse(await readJson(request)),
+      const result = await service.setDeviceState(
+        setDeviceStateInputSchema.parse(await readJson(request)),
       );
       sendJson(response, 200, result.home);
       return;

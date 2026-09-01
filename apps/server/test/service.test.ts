@@ -5,14 +5,14 @@ describe("PortegoService", () => {
   it("completes the room to simulated light walking skeleton", async () => {
     const service = new PortegoService();
     service.createRoom({ label: "Kitchen" });
-    service.createFixture({
+    service.createDevice({
       roomLabel: "Kitchen",
       label: "Kitchen ceiling",
       type: "light",
     });
 
-    const result = await service.setFixtureState({
-      fixtureLabel: "Kitchen ceiling",
+    const result = await service.setDeviceState({
+      deviceLabel: "Kitchen ceiling",
       on: true,
       brightness: 40,
     });
@@ -26,17 +26,17 @@ describe("PortegoService", () => {
     });
 
     const room = result.home.rooms[0];
-    const fixture = result.home.fixtures[0];
+    const device = result.home.devices[0];
     expect(room).toBeDefined();
-    expect(fixture).toBeDefined();
-    if (!room || !fixture) {
+    expect(device).toBeDefined();
+    if (!room || !device) {
       return;
     }
 
     service.updateRoom({ roomId: room.id, x: 240, y: 160, width: 420, height: 300 });
-    const moved = service.moveFixture({ fixtureId: fixture.id, x: 360, y: 260 });
+    const moved = service.moveDevice({ deviceId: device.id, x: 360, y: 260 });
     expect(moved.rooms[0]).toMatchObject({ x: 240, y: 160, width: 420, height: 300 });
-    expect(moved.fixtures[0]?.position).toEqual({ x: 360, y: 260 });
+    expect(moved.devices[0]?.position).toEqual({ x: 360, y: 260 });
   });
 
   it("treats batch edits as one undoable service transaction", () => {

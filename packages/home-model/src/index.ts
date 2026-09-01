@@ -33,13 +33,27 @@ export const floorSchema = z.object({
   notes: z.string().trim().max(1000).default(""),
 });
 
-export const fixtureTypeSchema = z.enum(["light", "switch", "plug", "sensor"]);
+export const deviceTypeSchema = z.enum(["light", "switch", "plug", "sensor"]);
 
-export const fixtureSchema = z.object({
+export const deviceConfigSchema = z.object({
+  mounting: z.enum(["ceiling", "wall", "table", "floor"]).optional(),
+  dimmable: z.boolean().optional(),
+  colorTemperature: z.boolean().optional(),
+  mode: z.enum(["toggle", "momentary", "dimmer"]).optional(),
+  channels: z.number().int().min(1).max(4).optional(),
+  energyMonitoring: z.boolean().optional(),
+  measures: z
+    .array(z.enum(["temperature", "occupancy", "contact"]))
+    .min(1)
+    .optional(),
+});
+
+export const deviceSchema = z.object({
   id: z.string().min(1),
   roomId: z.string().min(1),
   label: z.string().trim().min(1).max(80),
-  type: fixtureTypeSchema,
+  type: deviceTypeSchema,
+  config: deviceConfigSchema,
   position: positionSchema,
   capabilities: z.array(capabilityKindSchema).min(1),
 });
@@ -48,6 +62,9 @@ export const deviceStateSchema = z.object({
   on: z.boolean().optional(),
   brightness: z.number().int().min(0).max(100).optional(),
   temperature: z.number().optional(),
+  contact: z.boolean().optional(),
+  occupancy: z.boolean().optional(),
+  energy: z.number().nonnegative().optional(),
 });
 
 export const deviceEndpointSchema = z.object({
@@ -64,7 +81,7 @@ export const deviceEndpointSchema = z.object({
 
 export const bindingSchema = z.object({
   id: z.string().min(1),
-  fixtureId: z.string().min(1),
+  deviceId: z.string().min(1),
   endpointId: z.string().min(1),
   createdAt: z.string().datetime(),
 });
@@ -102,7 +119,7 @@ export const homeDocumentSchema = z.object({
     .array(floorSchema)
     .default([{ id: "floor_ground", name: "Ground floor", description: "", notes: "" }]),
   rooms: z.array(roomSchema),
-  fixtures: z.array(fixtureSchema),
+  devices: z.array(deviceSchema),
   endpoints: z.array(deviceEndpointSchema),
   bindings: z.array(bindingSchema),
   openings: z.array(openingSchema),
@@ -152,11 +169,12 @@ export const removeFloorInputSchema = z.object({
   floorName: z.string().trim().min(1).max(80),
 });
 
-export const addFixtureInputSchema = z.object({
+export const addDeviceInputSchema = z.object({
   roomId: z.string().min(1).optional(),
   roomLabel: z.string().trim().min(1).max(80).optional(),
   label: z.string().trim().min(1).max(80),
-  type: fixtureTypeSchema.default("light"),
+  type: deviceTypeSchema,
+  config: deviceConfigSchema.optional(),
   position: positionSchema.optional(),
   autoBind: z.boolean().default(true),
 });
@@ -193,66 +211,70 @@ export const removeRoomInputSchema = z
     message: "Provide roomId or roomLabel.",
   });
 
-export const moveFixtureInputSchema = z
+export const moveDeviceInputSchema = z
   .object({
-    fixtureId: z.string().min(1).optional(),
-    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+    deviceId: z.string().min(1).optional(),
+    deviceLabel: z.string().trim().min(1).max(80).optional(),
     x: z.number().min(0).max(1000),
     y: z.number().min(0).max(720),
     roomId: z.string().min(1).optional(),
     roomLabel: z.string().trim().min(1).max(80).optional(),
   })
-  .refine((input) => input.fixtureId || input.fixtureLabel, {
-    message: "Provide fixtureId or fixtureLabel.",
+  .refine((input) => input.deviceId || input.deviceLabel, {
+    message: "Provide deviceId or deviceLabel.",
   });
 
-export const updateFixtureInputSchema = z
+export const updateDeviceInputSchema = z
   .object({
-    fixtureId: z.string().min(1).optional(),
-    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+    deviceId: z.string().min(1).optional(),
+    deviceLabel: z.string().trim().min(1).max(80).optional(),
     label: z.string().trim().min(1).max(80).optional(),
+    type: deviceTypeSchema.optional(),
+    config: deviceConfigSchema.optional(),
     roomId: z.string().min(1).optional(),
     roomLabel: z.string().trim().min(1).max(80).optional(),
     x: z.number().min(0).max(1000).optional(),
     y: z.number().min(0).max(720).optional(),
   })
-  .refine((input) => input.fixtureId || input.fixtureLabel, {
-    message: "Provide fixtureId or fixtureLabel.",
+  .refine((input) => input.deviceId || input.deviceLabel, {
+    message: "Provide deviceId or deviceLabel.",
   })
   .refine(
     (input) =>
       input.label !== undefined ||
+      input.type !== undefined ||
+      input.config !== undefined ||
       input.roomId !== undefined ||
       input.roomLabel !== undefined ||
       input.x !== undefined ||
       input.y !== undefined,
-    { message: "Provide a fixture label, room, or position to update." },
+    { message: "Provide a device label, type, configuration, room, or position to update." },
   );
 
-export const removeFixtureInputSchema = z
+export const removeDeviceInputSchema = z
   .object({
-    fixtureId: z.string().min(1).optional(),
-    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+    deviceId: z.string().min(1).optional(),
+    deviceLabel: z.string().trim().min(1).max(80).optional(),
   })
-  .refine((input) => input.fixtureId || input.fixtureLabel, {
-    message: "Provide fixtureId or fixtureLabel.",
+  .refine((input) => input.deviceId || input.deviceLabel, {
+    message: "Provide deviceId or deviceLabel.",
   });
 
-export const bindFixtureInputSchema = z
+export const bindDeviceInputSchema = z
   .object({
-    fixtureId: z.string().min(1).optional(),
-    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+    deviceId: z.string().min(1).optional(),
+    deviceLabel: z.string().trim().min(1).max(80).optional(),
     endpointId: z.string().min(1).optional(),
     endpointLabel: z.string().trim().min(1).max(120).optional(),
   })
-  .refine((input) => input.fixtureId || input.fixtureLabel, {
-    message: "Provide fixtureId or fixtureLabel.",
+  .refine((input) => input.deviceId || input.deviceLabel, {
+    message: "Provide deviceId or deviceLabel.",
   })
   .refine((input) => input.endpointId || input.endpointLabel, {
     message: "Provide endpointId or endpointLabel.",
   });
 
-export const unbindFixtureInputSchema = removeFixtureInputSchema;
+export const unbindDeviceInputSchema = removeDeviceInputSchema;
 
 export const addOpeningInputSchema = z
   .object({
@@ -278,15 +300,15 @@ export const removeOpeningInputSchema = z
     message: "Provide openingId or label.",
   });
 
-export const setFixtureStateInputSchema = z
+export const setDeviceStateInputSchema = z
   .object({
-    fixtureId: z.string().min(1).optional(),
-    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+    deviceId: z.string().min(1).optional(),
+    deviceLabel: z.string().trim().min(1).max(80).optional(),
     on: z.boolean().optional(),
     brightness: z.number().int().min(0).max(100).optional(),
   })
-  .refine((input) => input.fixtureId || input.fixtureLabel, {
-    message: "Provide fixtureId or fixtureLabel.",
+  .refine((input) => input.deviceId || input.deviceLabel, {
+    message: "Provide deviceId or deviceLabel.",
   })
   .refine((input) => input.on !== undefined || input.brightness !== undefined, {
     message: "Provide on or brightness.",
@@ -296,11 +318,11 @@ export const homeChangeSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("add_room"), input: addRoomInputSchema }),
   z.object({ op: z.literal("update_room"), input: updateRoomInputSchema }),
   z.object({ op: z.literal("remove_room"), input: removeRoomInputSchema }),
-  z.object({ op: z.literal("add_fixture"), input: addFixtureInputSchema }),
-  z.object({ op: z.literal("update_fixture"), input: updateFixtureInputSchema }),
-  z.object({ op: z.literal("remove_fixture"), input: removeFixtureInputSchema }),
-  z.object({ op: z.literal("bind_device"), input: bindFixtureInputSchema }),
-  z.object({ op: z.literal("unbind_device"), input: unbindFixtureInputSchema }),
+  z.object({ op: z.literal("add_device"), input: addDeviceInputSchema }),
+  z.object({ op: z.literal("update_device"), input: updateDeviceInputSchema }),
+  z.object({ op: z.literal("remove_device"), input: removeDeviceInputSchema }),
+  z.object({ op: z.literal("bind_device"), input: bindDeviceInputSchema }),
+  z.object({ op: z.literal("unbind_device"), input: unbindDeviceInputSchema }),
   z.object({ op: z.literal("add_opening"), input: addOpeningInputSchema }),
   z.object({ op: z.literal("remove_opening"), input: removeOpeningInputSchema }),
 ]);
@@ -312,7 +334,9 @@ export const applyHomeChangesInputSchema = z.object({
 export type CapabilityKind = z.infer<typeof capabilityKindSchema>;
 export type Room = z.infer<typeof roomSchema>;
 export type Floor = z.infer<typeof floorSchema>;
-export type Fixture = z.infer<typeof fixtureSchema>;
+export type Device = z.infer<typeof deviceSchema>;
+export type DeviceType = z.infer<typeof deviceTypeSchema>;
+export type DeviceConfig = z.infer<typeof deviceConfigSchema>;
 export type DeviceState = z.infer<typeof deviceStateSchema>;
 export type DeviceEndpoint = z.infer<typeof deviceEndpointSchema>;
 export type Binding = z.infer<typeof bindingSchema>;
@@ -325,26 +349,63 @@ export type AddRoomInput = z.input<typeof addRoomInputSchema>;
 export type UpdateHomeDetailsInput = z.infer<typeof updateHomeDetailsInputSchema>;
 export type UpdateFloorDetailsInput = z.infer<typeof updateFloorDetailsInputSchema>;
 export type RemoveFloorInput = z.infer<typeof removeFloorInputSchema>;
-export type AddFixtureInput = z.input<typeof addFixtureInputSchema>;
+export type AddDeviceInput = z.input<typeof addDeviceInputSchema>;
 export type UpdateRoomInput = z.infer<typeof updateRoomInputSchema>;
 export type RemoveRoomInput = z.infer<typeof removeRoomInputSchema>;
-export type MoveFixtureInput = z.infer<typeof moveFixtureInputSchema>;
-export type UpdateFixtureInput = z.infer<typeof updateFixtureInputSchema>;
-export type RemoveFixtureInput = z.infer<typeof removeFixtureInputSchema>;
-export type BindFixtureInput = z.infer<typeof bindFixtureInputSchema>;
-export type UnbindFixtureInput = z.infer<typeof unbindFixtureInputSchema>;
+export type MoveDeviceInput = z.infer<typeof moveDeviceInputSchema>;
+export type UpdateDeviceInput = z.infer<typeof updateDeviceInputSchema>;
+export type RemoveDeviceInput = z.infer<typeof removeDeviceInputSchema>;
+export type BindDeviceInput = z.infer<typeof bindDeviceInputSchema>;
+export type UnbindDeviceInput = z.infer<typeof unbindDeviceInputSchema>;
 export type AddOpeningInput = z.input<typeof addOpeningInputSchema>;
 export type RemoveOpeningInput = z.infer<typeof removeOpeningInputSchema>;
-export type SetFixtureStateInput = z.infer<typeof setFixtureStateInputSchema>;
+export type SetDeviceStateInput = z.infer<typeof setDeviceStateInputSchema>;
 export type HomeChange = z.input<typeof homeChangeSchema>;
 export type ApplyHomeChangesInput = z.input<typeof applyHomeChangesInputSchema>;
 
-const fixtureCapabilities: Record<z.infer<typeof fixtureTypeSchema>, CapabilityKind[]> = {
-  light: ["power", "brightness"],
-  switch: ["power"],
-  plug: ["power", "energy"],
-  sensor: ["temperature"],
-};
+export function normalizeDeviceConfig(
+  type: DeviceType,
+  rawConfig: DeviceConfig = {},
+): DeviceConfig {
+  switch (type) {
+    case "light":
+      return {
+        mounting: rawConfig.mounting ?? "ceiling",
+        dimmable: rawConfig.dimmable ?? true,
+        colorTemperature: rawConfig.colorTemperature ?? false,
+      };
+    case "switch":
+      return {
+        mode: rawConfig.mode ?? "toggle",
+        channels: rawConfig.channels ?? 1,
+      };
+    case "plug":
+      return { energyMonitoring: rawConfig.energyMonitoring ?? false };
+    case "sensor":
+      return { measures: rawConfig.measures ?? ["temperature"] };
+  }
+}
+
+export function capabilitiesForDevice(type: DeviceType, config: DeviceConfig): CapabilityKind[] {
+  switch (type) {
+    case "light":
+      return [
+        "power",
+        ...(config.dimmable ? (["brightness"] as const) : []),
+        ...(config.colorTemperature ? (["color_temperature"] as const) : []),
+      ];
+    case "switch":
+      return ["power", ...(config.mode === "dimmer" ? (["brightness"] as const) : [])];
+    case "plug":
+      return ["power", ...(config.energyMonitoring ? (["energy"] as const) : [])];
+    case "sensor":
+      return config.measures ?? ["temperature"];
+  }
+}
+
+export function endpointSupportsDevice(endpoint: DeviceEndpoint, device: Device): boolean {
+  return device.capabilities.every((capability) => endpoint.capabilities.includes(capability));
+}
 
 const id = (prefix: string): string =>
   typeof globalThis.crypto?.randomUUID === "function"
@@ -367,7 +428,7 @@ export function createDemoHome(name = "Casa Portego"): HomeDocument {
     floors: [{ id: "floor_ground", name: "Ground floor", description: "", notes: "" }],
     revision: 0,
     rooms: [],
-    fixtures: [],
+    devices: [],
     endpoints: [
       {
         id: "endpoint_sim_light_1",
@@ -378,6 +439,39 @@ export function createDemoHome(name = "Casa Portego"): HomeDocument {
         capabilities: ["power", "brightness"],
         desiredState: { on: false, brightness: 72 },
         reportedState: { on: false, brightness: 72 },
+        updatedAt: timestamp,
+      },
+      {
+        id: "endpoint_sim_switch_1",
+        gatewayId: "gateway_sim_1",
+        label: "Simulator switch 01",
+        protocol: "simulated",
+        reachable: true,
+        capabilities: ["power"],
+        desiredState: { on: false },
+        reportedState: { on: false },
+        updatedAt: timestamp,
+      },
+      {
+        id: "endpoint_sim_plug_1",
+        gatewayId: "gateway_sim_1",
+        label: "Simulator plug 01",
+        protocol: "simulated",
+        reachable: true,
+        capabilities: ["power", "energy"],
+        desiredState: { on: false },
+        reportedState: { on: false, energy: 0 },
+        updatedAt: timestamp,
+      },
+      {
+        id: "endpoint_sim_sensor_1",
+        gatewayId: "gateway_sim_1",
+        label: "Simulator multisensor 01",
+        protocol: "simulated",
+        reachable: true,
+        capabilities: ["temperature", "occupancy", "contact"],
+        desiredState: {},
+        reportedState: { temperature: 21.4, occupancy: false, contact: false },
         updatedAt: timestamp,
       },
     ],
@@ -459,15 +553,15 @@ export function removeFloor(home: HomeDocument, rawInput: RemoveFloorInput): Hom
       .filter((room) => room.floor.toLowerCase() === floor.name.toLowerCase())
       .map((room) => room.id),
   );
-  const fixtureIds = new Set(
-    home.fixtures.filter((fixture) => roomIds.has(fixture.roomId)).map((fixture) => fixture.id),
+  const deviceIds = new Set(
+    home.devices.filter((device) => roomIds.has(device.roomId)).map((device) => device.id),
   );
   return touch({
     ...home,
     floors: home.floors.filter((candidate) => candidate.id !== floor.id),
     rooms: home.rooms.filter((room) => !roomIds.has(room.id)),
-    fixtures: home.fixtures.filter((fixture) => !roomIds.has(fixture.roomId)),
-    bindings: home.bindings.filter((binding) => !fixtureIds.has(binding.fixtureId)),
+    devices: home.devices.filter((device) => !roomIds.has(device.roomId)),
+    bindings: home.bindings.filter((binding) => !deviceIds.has(binding.deviceId)),
     openings: home.openings.filter(
       (opening) => !roomIds.has(opening.roomId) && !roomIds.has(opening.connectsToRoomId ?? ""),
     ),
@@ -539,14 +633,14 @@ export function updateRoomGeometry(home: HomeDocument, rawInput: UpdateRoomInput
     height,
   };
   const inset = 28;
-  const fixtures = home.fixtures.map((fixture) => {
-    if (fixture.roomId !== room.id) {
-      return fixture;
+  const devices = home.devices.map((device) => {
+    if (device.roomId !== room.id) {
+      return device;
     }
-    const relativeX = (fixture.position.x - room.x) / room.width;
-    const relativeY = (fixture.position.y - room.y) / room.height;
+    const relativeX = (device.position.x - room.x) / room.width;
+    const relativeY = (device.position.y - room.y) / room.height;
     return {
-      ...fixture,
+      ...device,
       position: {
         x: clamp(
           nextRoom.x + relativeX * nextRoom.width,
@@ -565,29 +659,29 @@ export function updateRoomGeometry(home: HomeDocument, rawInput: UpdateRoomInput
   return touch({
     ...home,
     rooms: home.rooms.map((candidate) => (candidate.id === room.id ? nextRoom : candidate)),
-    fixtures,
+    devices,
   });
 }
 
 export function removeRoom(home: HomeDocument, rawInput: RemoveRoomInput): HomeDocument {
   const input = removeRoomInputSchema.parse(rawInput);
   const room = resolveRoom(home, input);
-  const fixtureIds = new Set(
-    home.fixtures.filter((fixture) => fixture.roomId === room.id).map((fixture) => fixture.id),
+  const deviceIds = new Set(
+    home.devices.filter((device) => device.roomId === room.id).map((device) => device.id),
   );
   return touch({
     ...home,
     rooms: home.rooms.filter((candidate) => candidate.id !== room.id),
-    fixtures: home.fixtures.filter((fixture) => fixture.roomId !== room.id),
-    bindings: home.bindings.filter((binding) => !fixtureIds.has(binding.fixtureId)),
+    devices: home.devices.filter((device) => device.roomId !== room.id),
+    bindings: home.bindings.filter((binding) => !deviceIds.has(binding.deviceId)),
     openings: home.openings.filter(
       (opening) => opening.roomId !== room.id && opening.connectsToRoomId !== room.id,
     ),
   });
 }
 
-export function addFixture(home: HomeDocument, rawInput: AddFixtureInput): HomeDocument {
-  const input = addFixtureInputSchema.parse(rawInput);
+export function addDevice(home: HomeDocument, rawInput: AddDeviceInput): HomeDocument {
+  const input = addDeviceInputSchema.parse(rawInput);
   const room = input.roomId
     ? home.rooms.find((candidate) => candidate.id === input.roomId)
     : home.rooms.find(
@@ -597,71 +691,69 @@ export function addFixture(home: HomeDocument, rawInput: AddFixtureInput): HomeD
   if (!room) {
     throw new Error("The requested room does not exist.");
   }
-  if (home.fixtures.some((fixture) => fixture.label.toLowerCase() === input.label.toLowerCase())) {
-    throw new Error("A fixture with that name already exists.");
+  if (home.devices.some((device) => device.label.toLowerCase() === input.label.toLowerCase())) {
+    throw new Error("A device with that name already exists.");
   }
 
-  const fixture: Fixture = {
-    id: id("fixture"),
+  const config = normalizeDeviceConfig(input.type, input.config);
+  const device: Device = {
+    id: id("device"),
     roomId: room.id,
     label: input.label,
     type: input.type,
+    config,
     position: input.position ?? {
       x: room.x + room.width / 2,
       y: room.y + room.height / 2,
     },
-    capabilities: fixtureCapabilities[input.type],
+    capabilities: capabilitiesForDevice(input.type, config),
   };
 
-  let next = touch({ ...home, fixtures: [...home.fixtures, fixture] });
+  let next = touch({ ...home, devices: [...home.devices, device] });
   if (!input.autoBind) {
     return next;
   }
 
   const boundEndpointIds = new Set(next.bindings.map((binding) => binding.endpointId));
   const endpoint = next.endpoints.find(
-    (candidate) =>
-      !boundEndpointIds.has(candidate.id) &&
-      candidate.capabilities.some((capability) => fixture.capabilities.includes(capability)),
+    (candidate) => !boundEndpointIds.has(candidate.id) && endpointSupportsDevice(candidate, device),
   );
 
   if (endpoint) {
-    next = bindFixture(next, fixture.id, endpoint.id);
+    next = bindDevice(next, device.id, endpoint.id);
   }
 
   return next;
 }
 
-export function bindFixture(
-  home: HomeDocument,
-  fixtureId: string,
-  endpointId: string,
-): HomeDocument {
-  if (!home.fixtures.some((fixture) => fixture.id === fixtureId)) {
-    throw new Error("Fixture not found.");
+export function bindDevice(home: HomeDocument, deviceId: string, endpointId: string): HomeDocument {
+  const device = home.devices.find((candidate) => candidate.id === deviceId);
+  if (!device) {
+    throw new Error("Device not found.");
   }
-  if (!home.endpoints.some((endpoint) => endpoint.id === endpointId)) {
+  const endpoint = home.endpoints.find((candidate) => candidate.id === endpointId);
+  if (!endpoint) {
     throw new Error("Device endpoint not found.");
+  }
+  if (!endpointSupportsDevice(endpoint, device)) {
+    throw new Error("The physical endpoint does not provide every capability this device needs.");
   }
 
   const bindings = home.bindings.filter(
-    (binding) => binding.fixtureId !== fixtureId && binding.endpointId !== endpointId,
+    (binding) => binding.deviceId !== deviceId && binding.endpointId !== endpointId,
   );
   bindings.push({
     id: id("binding"),
-    fixtureId,
+    deviceId,
     endpointId,
     createdAt: now(),
   });
   return touch({ ...home, bindings });
 }
 
-export function bindFixtureToEndpoint(
-  home: HomeDocument,
-  rawInput: BindFixtureInput,
-): HomeDocument {
-  const input = bindFixtureInputSchema.parse(rawInput);
-  const fixture = resolveFixture(home, input);
+export function bindDeviceToEndpoint(home: HomeDocument, rawInput: BindDeviceInput): HomeDocument {
+  const input = bindDeviceInputSchema.parse(rawInput);
+  const device = resolveDevice(home, input);
   const endpoint = input.endpointId
     ? home.endpoints.find((candidate) => candidate.id === input.endpointId)
     : home.endpoints.find(
@@ -670,18 +762,18 @@ export function bindFixtureToEndpoint(
   if (!endpoint) {
     throw new Error("Device endpoint not found.");
   }
-  if (!endpoint.capabilities.some((capability) => fixture.capabilities.includes(capability))) {
-    throw new Error("The fixture and device do not share a compatible capability.");
+  if (!endpointSupportsDevice(endpoint, device)) {
+    throw new Error("The physical endpoint does not provide every capability this device needs.");
   }
-  return bindFixture(home, fixture.id, endpoint.id);
+  return bindDevice(home, device.id, endpoint.id);
 }
 
-export function unbindFixture(home: HomeDocument, rawInput: UnbindFixtureInput): HomeDocument {
-  const input = unbindFixtureInputSchema.parse(rawInput);
-  const fixture = resolveFixture(home, input);
+export function unbindDevice(home: HomeDocument, rawInput: UnbindDeviceInput): HomeDocument {
+  const input = unbindDeviceInputSchema.parse(rawInput);
+  const device = resolveDevice(home, input);
   return touch({
     ...home,
-    bindings: home.bindings.filter((binding) => binding.fixtureId !== fixture.id),
+    bindings: home.bindings.filter((binding) => binding.deviceId !== device.id),
   });
 }
 
@@ -708,76 +800,93 @@ export function setGatewayStatus(
   });
 }
 
-export function resolveFixture(
+export function resolveDevice(
   home: HomeDocument,
-  input: Pick<SetFixtureStateInput, "fixtureId" | "fixtureLabel">,
-): Fixture {
-  const fixture = input.fixtureId
-    ? home.fixtures.find((candidate) => candidate.id === input.fixtureId)
-    : home.fixtures.find(
-        (candidate) => candidate.label.toLowerCase() === input.fixtureLabel?.toLowerCase(),
+  input: Pick<SetDeviceStateInput, "deviceId" | "deviceLabel">,
+): Device {
+  const device = input.deviceId
+    ? home.devices.find((candidate) => candidate.id === input.deviceId)
+    : home.devices.find(
+        (candidate) => candidate.label.toLowerCase() === input.deviceLabel?.toLowerCase(),
       );
-  if (!fixture) {
-    throw new Error("Fixture not found.");
+  if (!device) {
+    throw new Error("Device not found.");
   }
-  return fixture;
+  return device;
 }
 
-export function moveFixture(home: HomeDocument, rawInput: MoveFixtureInput): HomeDocument {
-  const input = moveFixtureInputSchema.parse(rawInput);
-  return updateFixture(home, input);
+export function moveDevice(home: HomeDocument, rawInput: MoveDeviceInput): HomeDocument {
+  const input = moveDeviceInputSchema.parse(rawInput);
+  return updateDevice(home, input);
 }
 
-export function updateFixture(home: HomeDocument, rawInput: UpdateFixtureInput): HomeDocument {
-  const input = updateFixtureInputSchema.parse(rawInput);
-  const fixture = resolveFixture(home, input);
+export function updateDevice(home: HomeDocument, rawInput: UpdateDeviceInput): HomeDocument {
+  const input = updateDeviceInputSchema.parse(rawInput);
+  const device = resolveDevice(home, input);
   const room =
     input.roomId || input.roomLabel
       ? resolveRoom(home, { roomId: input.roomId, roomLabel: input.roomLabel })
-      : roomForFixture(home, fixture);
+      : roomForDevice(home, device);
   if (!room) {
-    throw new Error("Fixture room not found.");
+    throw new Error("Device room not found.");
   }
   if (
     input.label &&
-    home.fixtures.some(
+    home.devices.some(
       (candidate) =>
-        candidate.id !== fixture.id && candidate.label.toLowerCase() === input.label?.toLowerCase(),
+        candidate.id !== device.id && candidate.label.toLowerCase() === input.label?.toLowerCase(),
     )
   ) {
-    throw new Error("A fixture with that name already exists.");
+    throw new Error("A device with that name already exists.");
   }
   const inset = 28;
-  const movedRooms = fixture.roomId !== room.id;
+  const movedRooms = device.roomId !== room.id;
   const position = {
     x: clamp(
-      input.x ?? (movedRooms ? room.x + room.width / 2 : fixture.position.x),
+      input.x ?? (movedRooms ? room.x + room.width / 2 : device.position.x),
       room.x + inset,
       room.x + room.width - inset,
     ),
     y: clamp(
-      input.y ?? (movedRooms ? room.y + room.height / 2 : fixture.position.y),
+      input.y ?? (movedRooms ? room.y + room.height / 2 : device.position.y),
       room.y + inset,
       room.y + room.height - inset,
     ),
   };
+  const type = input.type ?? device.type;
+  const config = normalizeDeviceConfig(
+    type,
+    input.config ?? (type === device.type ? device.config : undefined),
+  );
+  const capabilities = capabilitiesForDevice(type, config);
+  const nextDevice: Device = {
+    ...device,
+    label: input.label ?? device.label,
+    roomId: room.id,
+    type,
+    config,
+    capabilities,
+    position,
+  };
+  const binding = home.bindings.find((candidate) => candidate.deviceId === device.id);
+  const endpoint = home.endpoints.find((candidate) => candidate.id === binding?.endpointId);
+  const keepBinding = !endpoint || endpointSupportsDevice(endpoint, nextDevice);
   return touch({
     ...home,
-    fixtures: home.fixtures.map((candidate) =>
-      candidate.id === fixture.id
-        ? { ...candidate, label: input.label ?? candidate.label, roomId: room.id, position }
-        : candidate,
-    ),
+    devices: home.devices.map((candidate) => (candidate.id === device.id ? nextDevice : candidate)),
+    bindings: keepBinding
+      ? home.bindings
+      : home.bindings.filter((candidate) => candidate.deviceId !== device.id),
   });
 }
 
-export function removeFixture(home: HomeDocument, rawInput: RemoveFixtureInput): HomeDocument {
-  const input = removeFixtureInputSchema.parse(rawInput);
-  const fixture = resolveFixture(home, input);
+export function removeDevice(home: HomeDocument, rawInput: RemoveDeviceInput): HomeDocument {
+  const input = removeDeviceInputSchema.parse(rawInput);
+  const device = resolveDevice(home, input);
   return touch({
     ...home,
-    fixtures: home.fixtures.filter((candidate) => candidate.id !== fixture.id),
-    bindings: home.bindings.filter((binding) => binding.fixtureId !== fixture.id),
+    devices: home.devices.filter((candidate) => candidate.id !== device.id),
+    bindings: home.bindings.filter((binding) => binding.deviceId !== device.id),
   });
 }
 
@@ -835,16 +944,16 @@ export function applyHomeChanges(
         return updateRoomGeometry(current, change.input);
       case "remove_room":
         return removeRoom(current, change.input);
-      case "add_fixture":
-        return addFixture(current, change.input);
-      case "update_fixture":
-        return updateFixture(current, change.input);
-      case "remove_fixture":
-        return removeFixture(current, change.input);
+      case "add_device":
+        return addDevice(current, change.input);
+      case "update_device":
+        return updateDevice(current, change.input);
+      case "remove_device":
+        return removeDevice(current, change.input);
       case "bind_device":
-        return bindFixtureToEndpoint(current, change.input);
+        return bindDeviceToEndpoint(current, change.input);
       case "unbind_device":
-        return unbindFixture(current, change.input);
+        return unbindDevice(current, change.input);
       case "add_opening":
         return addOpening(current, change.input);
       case "remove_opening":
@@ -854,23 +963,29 @@ export function applyHomeChanges(
   }, home);
 }
 
-export function endpointForFixture(
+export function endpointForDevice(
   home: HomeDocument,
-  fixtureId: string,
+  deviceId: string,
 ): DeviceEndpoint | undefined {
-  const binding = home.bindings.find((candidate) => candidate.fixtureId === fixtureId);
+  const binding = home.bindings.find((candidate) => candidate.deviceId === deviceId);
   return home.endpoints.find((endpoint) => endpoint.id === binding?.endpointId);
 }
 
-export function setDesiredFixtureState(
+export function setDesiredDeviceState(
   home: HomeDocument,
-  rawInput: SetFixtureStateInput,
+  rawInput: SetDeviceStateInput,
 ): { home: HomeDocument; endpoint: DeviceEndpoint; requestedState: DeviceState } {
-  const input = setFixtureStateInputSchema.parse(rawInput);
-  const fixture = resolveFixture(home, input);
-  const endpoint = endpointForFixture(home, fixture.id);
+  const input = setDeviceStateInputSchema.parse(rawInput);
+  const device = resolveDevice(home, input);
+  if (input.on !== undefined && !device.capabilities.includes("power")) {
+    throw new Error(`${device.label} does not support power control.`);
+  }
+  if (input.brightness !== undefined && !device.capabilities.includes("brightness")) {
+    throw new Error(`${device.label} does not support brightness control.`);
+  }
+  const endpoint = endpointForDevice(home, device.id);
   if (!endpoint) {
-    throw new Error("Fixture is not bound to a device.");
+    throw new Error("Device is not bound to a hardware endpoint.");
   }
 
   const requestedState: DeviceState = {
@@ -910,6 +1025,6 @@ export function applyReportedState(
   });
 }
 
-export function roomForFixture(home: HomeDocument, fixture: Fixture): Room | undefined {
-  return home.rooms.find((room) => room.id === fixture.roomId);
+export function roomForDevice(home: HomeDocument, device: Device): Room | undefined {
+  return home.rooms.find((room) => room.id === device.roomId);
 }

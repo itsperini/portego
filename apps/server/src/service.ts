@@ -1,40 +1,40 @@
 import {
-  type AddFixtureInput,
+  type AddDeviceInput,
   type AddOpeningInput,
   type AddRoomInput,
   type ApplyHomeChangesInput,
-  addFixture,
+  addDevice,
   addOpening,
   addRoom,
   applyHomeChanges,
   applyReportedState,
-  type BindFixtureInput,
-  bindFixtureToEndpoint,
+  type BindDeviceInput,
+  bindDeviceToEndpoint,
   createDemoHome,
   type DeviceEndpoint,
   type DeviceState,
   type HomeDocument,
-  type MoveFixtureInput,
-  moveFixture,
-  type RemoveFixtureInput,
+  type MoveDeviceInput,
+  moveDevice,
+  type RemoveDeviceInput,
   type RemoveFloorInput,
   type RemoveOpeningInput,
   type RemoveRoomInput,
-  removeFixture,
+  removeDevice,
   removeFloor,
   removeOpening,
   removeRoom,
-  resolveFixture,
-  type SetFixtureStateInput,
-  setDesiredFixtureState,
+  resolveDevice,
+  type SetDeviceStateInput,
+  setDesiredDeviceState,
   setGatewayStatus,
-  type UnbindFixtureInput,
-  type UpdateFixtureInput,
+  type UnbindDeviceInput,
+  type UpdateDeviceInput,
   type UpdateFloorDetailsInput,
   type UpdateHomeDetailsInput,
   type UpdateRoomInput,
-  unbindFixture,
-  updateFixture,
+  unbindDevice,
+  updateDevice,
   updateFloorDetails,
   updateHomeDetails,
   updateRoomGeometry,
@@ -129,36 +129,36 @@ export class PortegoService {
     return this.#commit((home) => addRoom(home, input));
   }
 
-  createFixture(input: AddFixtureInput): HomeDocument {
-    return this.#commit((home) => addFixture(home, input));
+  createDevice(input: AddDeviceInput): HomeDocument {
+    return this.#commit((home) => addDevice(home, input));
   }
 
   updateRoom(input: UpdateRoomInput): HomeDocument {
     return this.#commit((home) => updateRoomGeometry(home, input));
   }
 
-  moveFixture(input: MoveFixtureInput): HomeDocument {
-    return this.#commit((home) => moveFixture(home, input));
+  moveDevice(input: MoveDeviceInput): HomeDocument {
+    return this.#commit((home) => moveDevice(home, input));
   }
 
   removeRoom(input: RemoveRoomInput): HomeDocument {
     return this.#commit((home) => removeRoom(home, input));
   }
 
-  updateFixture(input: UpdateFixtureInput): HomeDocument {
-    return this.#commit((home) => updateFixture(home, input));
+  updateDevice(input: UpdateDeviceInput): HomeDocument {
+    return this.#commit((home) => updateDevice(home, input));
   }
 
-  removeFixture(input: RemoveFixtureInput): HomeDocument {
-    return this.#commit((home) => removeFixture(home, input));
+  removeDevice(input: RemoveDeviceInput): HomeDocument {
+    return this.#commit((home) => removeDevice(home, input));
   }
 
-  bindFixture(input: BindFixtureInput): HomeDocument {
-    return this.#commit((home) => bindFixtureToEndpoint(home, input));
+  bindDevice(input: BindDeviceInput): HomeDocument {
+    return this.#commit((home) => bindDeviceToEndpoint(home, input));
   }
 
-  unbindFixture(input: UnbindFixtureInput): HomeDocument {
-    return this.#commit((home) => unbindFixture(home, input));
+  unbindDevice(input: UnbindDeviceInput): HomeDocument {
+    return this.#commit((home) => unbindDevice(home, input));
   }
 
   createOpening(input: AddOpeningInput): HomeDocument {
@@ -188,15 +188,15 @@ export class PortegoService {
     return this.snapshot();
   }
 
-  async setFixtureState(input: SetFixtureStateInput): Promise<{
+  async setDeviceState(input: SetDeviceStateInput): Promise<{
     home: HomeDocument;
-    fixtureId: string;
+    deviceId: string;
     endpointId: string;
     state: DeviceState;
   }> {
     const before = structuredClone(this.#home);
-    const fixture = resolveFixture(this.#home, input);
-    const desired = setDesiredFixtureState(this.#home, input);
+    const device = resolveDevice(this.#home, input);
+    const desired = setDesiredDeviceState(this.#home, input);
     this.#home = desired.home;
     const state = this.#commandExecutor
       ? await this.#commandExecutor(desired.endpoint.id, desired.requestedState)
@@ -207,7 +207,7 @@ export class PortegoService {
 
     return {
       home: this.snapshot(),
-      fixtureId: fixture.id,
+      deviceId: device.id,
       endpointId: desired.endpoint.id,
       state,
     };

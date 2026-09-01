@@ -1,38 +1,38 @@
 "use client";
 
 import {
-  type AddFixtureInput,
+  type AddDeviceInput,
   type AddOpeningInput,
   type AddRoomInput,
   type ApplyHomeChangesInput,
-  addFixture as addFixtureLocally,
+  addDevice as addDeviceLocally,
   addOpening as addOpeningLocally,
   addRoom as addRoomLocally,
   applyHomeChanges as applyHomeChangesLocally,
   applyReportedState,
-  type BindFixtureInput,
-  bindFixtureToEndpoint as bindFixtureLocally,
+  type BindDeviceInput,
+  bindDeviceToEndpoint as bindDeviceLocally,
   createDemoHome,
   type HomeDocument,
-  type MoveFixtureInput,
-  moveFixture as moveFixtureLocally,
-  type RemoveFixtureInput,
+  type MoveDeviceInput,
+  moveDevice as moveDeviceLocally,
+  type RemoveDeviceInput,
   type RemoveFloorInput,
   type RemoveOpeningInput,
   type RemoveRoomInput,
-  removeFixture as removeFixtureLocally,
+  removeDevice as removeDeviceLocally,
   removeFloor as removeFloorLocally,
   removeOpening as removeOpeningLocally,
   removeRoom as removeRoomLocally,
-  type SetFixtureStateInput,
-  setDesiredFixtureState,
-  type UnbindFixtureInput,
-  type UpdateFixtureInput,
+  type SetDeviceStateInput,
+  setDesiredDeviceState,
+  type UnbindDeviceInput,
+  type UpdateDeviceInput,
   type UpdateFloorDetailsInput,
   type UpdateHomeDetailsInput,
   type UpdateRoomInput,
-  unbindFixture as unbindFixtureLocally,
-  updateFixture as updateFixtureLocally,
+  unbindDevice as unbindDeviceLocally,
+  updateDevice as updateDeviceLocally,
   updateFloorDetails as updateFloorDetailsLocally,
   updateHomeDetails as updateHomeDetailsLocally,
   updateRoomGeometry as updateRoomLocally,
@@ -199,10 +199,10 @@ export function usePortegoHome() {
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
   );
 
-  const addFixture = useCallback(
-    async (input: AddFixtureInput) => {
+  const addDevice = useCallback(
+    async (input: AddDeviceInput) => {
       try {
-        const next = await request<HomeDocument>("/api/fixtures", {
+        const next = await request<HomeDocument>("/api/devices", {
           method: "POST",
           body: JSON.stringify(input),
         });
@@ -212,12 +212,12 @@ export function usePortegoHome() {
       } catch (requestError) {
         if (connectionMode === "cloud") {
           setError(
-            requestError instanceof Error ? requestError.message : "Could not add the fixture.",
+            requestError instanceof Error ? requestError.message : "Could not add the device.",
           );
           throw requestError;
         }
         setConnectionMode("local");
-        return acceptLocalMutation(addFixtureLocally(homeRef.current, input));
+        return acceptLocalMutation(addDeviceLocally(homeRef.current, input));
       }
     },
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
@@ -255,20 +255,20 @@ export function usePortegoHome() {
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
   );
 
-  const moveFixture = useCallback(
-    async (input: MoveFixtureInput) => {
-      const fixtureId =
-        input.fixtureId ??
-        homeRef.current.fixtures.find(
-          (fixture) => fixture.label.toLowerCase() === input.fixtureLabel?.toLowerCase(),
+  const moveDevice = useCallback(
+    async (input: MoveDeviceInput) => {
+      const deviceId =
+        input.deviceId ??
+        homeRef.current.devices.find(
+          (device) => device.label.toLowerCase() === input.deviceLabel?.toLowerCase(),
         )?.id;
-      if (!fixtureId) {
-        throw new Error("A fixture id is required for direct canvas editing.");
+      if (!deviceId) {
+        throw new Error("A device id is required for direct canvas editing.");
       }
       try {
-        const next = await request<HomeDocument>(`/api/fixtures/${encodeURIComponent(fixtureId)}`, {
+        const next = await request<HomeDocument>(`/api/devices/${encodeURIComponent(deviceId)}`, {
           method: "PATCH",
-          body: JSON.stringify({ ...input, fixtureId }),
+          body: JSON.stringify({ ...input, deviceId }),
         });
         setConnectionMode("cloud");
         setError(null);
@@ -276,19 +276,19 @@ export function usePortegoHome() {
       } catch (requestError) {
         if (connectionMode === "cloud") {
           setError(
-            requestError instanceof Error ? requestError.message : "Could not move the fixture.",
+            requestError instanceof Error ? requestError.message : "Could not move the device.",
           );
           throw requestError;
         }
         setConnectionMode("local");
-        return acceptLocalMutation(moveFixtureLocally(homeRef.current, { ...input, fixtureId }));
+        return acceptLocalMutation(moveDeviceLocally(homeRef.current, { ...input, deviceId }));
       }
     },
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
   );
 
-  const setFixtureState = useCallback(
-    async (input: SetFixtureStateInput) => {
+  const setDeviceState = useCallback(
+    async (input: SetDeviceStateInput) => {
       try {
         const next = await request<HomeDocument>("/api/devices/state", {
           method: "POST",
@@ -300,11 +300,11 @@ export function usePortegoHome() {
       } catch (requestError) {
         if (connectionMode === "cloud") {
           setError(
-            requestError instanceof Error ? requestError.message : "Could not control the fixture.",
+            requestError instanceof Error ? requestError.message : "Could not control the device.",
           );
           throw requestError;
         }
-        const desired = setDesiredFixtureState(homeRef.current, input);
+        const desired = setDesiredDeviceState(homeRef.current, input);
         setConnectionMode("local");
         return acceptLocalMutation(
           applyReportedState(desired.home, desired.endpoint.id, desired.requestedState),
@@ -341,20 +341,20 @@ export function usePortegoHome() {
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
   );
 
-  const updateFixture = useCallback(
-    async (input: UpdateFixtureInput) => {
-      const fixtureId =
-        input.fixtureId ??
-        homeRef.current.fixtures.find(
-          (fixture) => fixture.label.toLowerCase() === input.fixtureLabel?.toLowerCase(),
+  const updateDevice = useCallback(
+    async (input: UpdateDeviceInput) => {
+      const deviceId =
+        input.deviceId ??
+        homeRef.current.devices.find(
+          (device) => device.label.toLowerCase() === input.deviceLabel?.toLowerCase(),
         )?.id;
-      if (!fixtureId) {
-        throw new Error("Fixture not found.");
+      if (!deviceId) {
+        throw new Error("Device not found.");
       }
       try {
-        const next = await request<HomeDocument>(`/api/fixtures/${encodeURIComponent(fixtureId)}`, {
+        const next = await request<HomeDocument>(`/api/devices/${encodeURIComponent(deviceId)}`, {
           method: "PATCH",
-          body: JSON.stringify({ ...input, fixtureId }),
+          body: JSON.stringify({ ...input, deviceId }),
         });
         setConnectionMode("cloud");
         setError(null);
@@ -363,24 +363,24 @@ export function usePortegoHome() {
         if (connectionMode === "cloud") {
           throw requestError;
         }
-        return acceptLocalMutation(updateFixtureLocally(homeRef.current, { ...input, fixtureId }));
+        return acceptLocalMutation(updateDeviceLocally(homeRef.current, { ...input, deviceId }));
       }
     },
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
   );
 
-  const removeFixture = useCallback(
-    async (input: RemoveFixtureInput) => {
-      const fixtureId =
-        input.fixtureId ??
-        homeRef.current.fixtures.find(
-          (fixture) => fixture.label.toLowerCase() === input.fixtureLabel?.toLowerCase(),
+  const removeDevice = useCallback(
+    async (input: RemoveDeviceInput) => {
+      const deviceId =
+        input.deviceId ??
+        homeRef.current.devices.find(
+          (device) => device.label.toLowerCase() === input.deviceLabel?.toLowerCase(),
         )?.id;
-      if (!fixtureId) {
-        throw new Error("Fixture not found.");
+      if (!deviceId) {
+        throw new Error("Device not found.");
       }
       try {
-        const next = await request<HomeDocument>(`/api/fixtures/${encodeURIComponent(fixtureId)}`, {
+        const next = await request<HomeDocument>(`/api/devices/${encodeURIComponent(deviceId)}`, {
           method: "DELETE",
         });
         setConnectionMode("cloud");
@@ -390,14 +390,14 @@ export function usePortegoHome() {
         if (connectionMode === "cloud") {
           throw requestError;
         }
-        return acceptLocalMutation(removeFixtureLocally(homeRef.current, { fixtureId }));
+        return acceptLocalMutation(removeDeviceLocally(homeRef.current, { deviceId }));
       }
     },
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
   );
 
-  const bindFixture = useCallback(
-    async (input: BindFixtureInput) => {
+  const bindDevice = useCallback(
+    async (input: BindDeviceInput) => {
       try {
         const next = await request<HomeDocument>("/api/bindings", {
           method: "POST",
@@ -410,24 +410,24 @@ export function usePortegoHome() {
         if (connectionMode === "cloud") {
           throw requestError;
         }
-        return acceptLocalMutation(bindFixtureLocally(homeRef.current, input));
+        return acceptLocalMutation(bindDeviceLocally(homeRef.current, input));
       }
     },
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
   );
 
-  const unbindFixture = useCallback(
-    async (input: UnbindFixtureInput) => {
-      const fixtureId =
-        input.fixtureId ??
-        homeRef.current.fixtures.find(
-          (fixture) => fixture.label.toLowerCase() === input.fixtureLabel?.toLowerCase(),
+  const unbindDevice = useCallback(
+    async (input: UnbindDeviceInput) => {
+      const deviceId =
+        input.deviceId ??
+        homeRef.current.devices.find(
+          (device) => device.label.toLowerCase() === input.deviceLabel?.toLowerCase(),
         )?.id;
-      if (!fixtureId) {
-        throw new Error("Fixture not found.");
+      if (!deviceId) {
+        throw new Error("Device not found.");
       }
       try {
-        const next = await request<HomeDocument>(`/api/bindings/${encodeURIComponent(fixtureId)}`, {
+        const next = await request<HomeDocument>(`/api/bindings/${encodeURIComponent(deviceId)}`, {
           method: "DELETE",
         });
         setConnectionMode("cloud");
@@ -437,7 +437,7 @@ export function usePortegoHome() {
         if (connectionMode === "cloud") {
           throw requestError;
         }
-        return acceptLocalMutation(unbindFixtureLocally(homeRef.current, { fixtureId }));
+        return acceptLocalMutation(unbindDeviceLocally(homeRef.current, { deviceId }));
       }
     },
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
@@ -588,20 +588,20 @@ export function usePortegoHome() {
     updateFloorDetails,
     removeFloor,
     addRoom,
-    addFixture,
+    addDevice,
     updateRoom,
     removeRoom,
-    moveFixture,
-    updateFixture,
-    removeFixture,
-    bindFixture,
-    unbindFixture,
+    moveDevice,
+    updateDevice,
+    removeDevice,
+    bindDevice,
+    unbindDevice,
     addOpening,
     removeOpening,
     applyChanges,
     undo,
     redo,
-    setFixtureState,
+    setDeviceState,
     discover,
     reset,
   };

@@ -1,18 +1,18 @@
 import type {
-  AddFixtureInput,
+  AddDeviceInput,
   AddOpeningInput,
   AddRoomInput,
   ApplyHomeChangesInput,
-  BindFixtureInput,
+  BindDeviceInput,
   HomeDocument,
-  MoveFixtureInput,
-  RemoveFixtureInput,
+  MoveDeviceInput,
+  RemoveDeviceInput,
   RemoveFloorInput,
   RemoveOpeningInput,
   RemoveRoomInput,
-  SetFixtureStateInput,
-  UnbindFixtureInput,
-  UpdateFixtureInput,
+  SetDeviceStateInput,
+  UnbindDeviceInput,
+  UpdateDeviceInput,
   UpdateFloorDetailsInput,
   UpdateHomeDetailsInput,
   UpdateRoomInput,
@@ -26,18 +26,18 @@ export type WebMcpActions = {
   addRoom: (input: AddRoomInput) => Promise<HomeDocument>;
   updateRoom: (input: UpdateRoomInput) => Promise<HomeDocument>;
   removeRoom: (input: RemoveRoomInput) => Promise<HomeDocument>;
-  addFixture: (input: AddFixtureInput) => Promise<HomeDocument>;
-  moveFixture: (input: MoveFixtureInput) => Promise<HomeDocument>;
-  updateFixture: (input: UpdateFixtureInput) => Promise<HomeDocument>;
-  removeFixture: (input: RemoveFixtureInput) => Promise<HomeDocument>;
-  bindFixture: (input: BindFixtureInput) => Promise<HomeDocument>;
-  unbindFixture: (input: UnbindFixtureInput) => Promise<HomeDocument>;
+  addDevice: (input: AddDeviceInput) => Promise<HomeDocument>;
+  moveDevice: (input: MoveDeviceInput) => Promise<HomeDocument>;
+  updateDevice: (input: UpdateDeviceInput) => Promise<HomeDocument>;
+  removeDevice: (input: RemoveDeviceInput) => Promise<HomeDocument>;
+  bindDevice: (input: BindDeviceInput) => Promise<HomeDocument>;
+  unbindDevice: (input: UnbindDeviceInput) => Promise<HomeDocument>;
   addOpening: (input: AddOpeningInput) => Promise<HomeDocument>;
   removeOpening: (input: RemoveOpeningInput) => Promise<HomeDocument>;
   applyChanges: (input: ApplyHomeChangesInput) => Promise<HomeDocument>;
   undo: () => Promise<HomeDocument>;
   redo: () => Promise<HomeDocument>;
-  setFixtureState: (input: SetFixtureStateInput) => Promise<HomeDocument>;
+  setDeviceState: (input: SetDeviceStateInput) => Promise<HomeDocument>;
   reset: () => Promise<HomeDocument>;
 };
 
@@ -64,7 +64,7 @@ export async function registerPortegoTools(
         name: "home.get_document",
         title: "Read the Portego home",
         description:
-          "Read the current visible Portego home document, including rooms, fixtures, bindings, gateway status, and reported device state. This does not change anything.",
+          "Read the current visible Portego home document, including rooms, devices, bindings, gateway status, and reported device state. This does not change anything.",
         inputSchema: {
           type: "object",
           properties: {},
@@ -78,7 +78,7 @@ export async function registerPortegoTools(
             home,
             summary: {
               rooms: home.rooms.length,
-              fixtures: home.fixtures.length,
+              devices: home.devices.length,
               openings: home.openings.length,
               gateway: home.gateway.status,
               revision: home.revision,
@@ -151,7 +151,7 @@ export async function registerPortegoTools(
         name: "home.remove_floor",
         title: "Remove a floor",
         description:
-          "Remove one named floor and every room, fixture, binding, door, and window assigned to it.",
+          "Remove one named floor and every room, device, binding, door, and window assigned to it.",
         inputSchema: {
           type: "object",
           properties: { floorName: { type: "string", minLength: 1, maxLength: 80 } },
@@ -270,7 +270,7 @@ export async function registerPortegoTools(
         name: "home.remove_room",
         title: "Remove a room",
         description:
-          "Remove one named room, its designed fixtures, their bindings, and any doors or windows connected to it.",
+          "Remove one named room, its designed devices, their bindings, and any doors or windows connected to it.",
         inputSchema: {
           type: "object",
           properties: {
@@ -294,10 +294,10 @@ export async function registerPortegoTools(
 
     await modelContext.registerTool(
       {
-        name: "home.add_fixture",
-        title: "Add a fixture",
+        name: "home.add_device",
+        title: "Add a device",
         description:
-          "Add one light, switch, plug, or sensor to an existing room on the visible canvas. If exactly one compatible simulated endpoint is free, Portego binds it automatically.",
+          "Add one configured light, switch, plug, or sensor to an existing room on the visible canvas. When autoBind is enabled, Portego binds the first available hardware endpoint that provides every required capability.",
         inputSchema: {
           type: "object",
           properties: {
@@ -311,11 +311,33 @@ export async function registerPortegoTools(
               type: "string",
               minLength: 1,
               maxLength: 80,
-              description: "Human-facing fixture name.",
+              description: "Human-facing device name.",
             },
             type: {
               type: "string",
               enum: ["light", "switch", "plug", "sensor"],
+            },
+            config: {
+              type: "object",
+              description:
+                "Type-specific configuration: lights use mounting, dimmable, and colorTemperature; switches use mode and channels; plugs use energyMonitoring; sensors use measures.",
+              properties: {
+                mounting: { type: "string", enum: ["ceiling", "wall", "table", "floor"] },
+                dimmable: { type: "boolean" },
+                colorTemperature: { type: "boolean" },
+                mode: { type: "string", enum: ["toggle", "momentary", "dimmer"] },
+                channels: { type: "number", minimum: 1, maximum: 4 },
+                energyMonitoring: { type: "boolean" },
+                measures: {
+                  type: "array",
+                  minItems: 1,
+                  items: {
+                    type: "string",
+                    enum: ["temperature", "occupancy", "contact"],
+                  },
+                },
+              },
+              additionalProperties: false,
             },
             autoBind: {
               type: "boolean",
@@ -335,18 +357,18 @@ export async function registerPortegoTools(
           additionalProperties: false,
         },
         execute: async (input) => {
-          const home = await actions.addFixture(input as AddFixtureInput);
-          const fixture = home.fixtures.at(-1);
-          const binding = home.bindings.find((item) => item.fixtureId === fixture?.id);
-          onActivity?.(`Codex added ${fixture?.label ?? "a fixture"}`);
+          const home = await actions.addDevice(input as AddDeviceInput);
+          const device = home.devices.at(-1);
+          const binding = home.bindings.find((item) => item.deviceId === device?.id);
+          onActivity?.(`Codex added ${device?.label ?? "a device"}`);
           return {
             changed: true,
-            fixture,
+            device,
             binding,
             revision: home.revision,
             verification: binding
-              ? "The fixture is visible and bound to a simulated endpoint."
-              : "The fixture is visible but is not yet bound.",
+              ? "The device is visible and bound to a simulated endpoint."
+              : "The device is visible but is not yet bound.",
           };
         },
       },
@@ -355,18 +377,18 @@ export async function registerPortegoTools(
 
     await modelContext.registerTool(
       {
-        name: "home.move_fixture",
-        title: "Move a fixture",
+        name: "home.move_device",
+        title: "Move a device",
         description:
-          "Move one named fixture within its room on the visible Portego canvas. Coordinates use the 1000 by 650 floor-plan space.",
+          "Move one named device within its room on the visible Portego canvas. Coordinates use the 1000 by 650 floor-plan space.",
         inputSchema: {
           type: "object",
           properties: {
-            fixtureLabel: {
+            deviceLabel: {
               type: "string",
               minLength: 1,
               maxLength: 80,
-              description: "Exact visible fixture name.",
+              description: "Exact visible device name.",
             },
             x: { type: "number", minimum: 0, maximum: 1000 },
             y: { type: "number", minimum: 0, maximum: 650 },
@@ -377,20 +399,20 @@ export async function registerPortegoTools(
               description: "Optional destination room name.",
             },
           },
-          required: ["fixtureLabel", "x", "y"],
+          required: ["deviceLabel", "x", "y"],
           additionalProperties: false,
         },
         execute: async (input) => {
-          const home = await actions.moveFixture(input as MoveFixtureInput);
-          const fixture = home.fixtures.find(
-            (item) => item.label.toLowerCase() === String(input.fixtureLabel).toLowerCase(),
+          const home = await actions.moveDevice(input as MoveDeviceInput);
+          const device = home.devices.find(
+            (item) => item.label.toLowerCase() === String(input.deviceLabel).toLowerCase(),
           );
-          onActivity?.(`Codex moved ${fixture?.label ?? "a fixture"}`);
+          onActivity?.(`Codex moved ${device?.label ?? "a device"}`);
           return {
             changed: true,
-            fixture,
+            device,
             revision: home.revision,
-            verification: "The fixture position is now visible on the canvas.",
+            verification: "The device position is now visible on the canvas.",
           };
         },
       },
@@ -399,22 +421,48 @@ export async function registerPortegoTools(
 
     await modelContext.registerTool(
       {
-        name: "home.update_fixture",
-        title: "Rename or reassign a fixture",
+        name: "home.update_device",
+        title: "Rename or reassign a device",
         description:
-          "Rename a fixture, move it to another room, or set its exact position. Omitted coordinates place a reassigned fixture in the center of its new room.",
+          "Rename, reconfigure, change the type of, or move a device. An incompatible physical binding is removed automatically.",
         inputSchema: {
           type: "object",
           properties: {
-            fixtureLabel: { type: "string", minLength: 1, maxLength: 80 },
+            deviceLabel: { type: "string", minLength: 1, maxLength: 80 },
             label: { type: "string", minLength: 1, maxLength: 80 },
+            type: {
+              type: "string",
+              enum: ["light", "switch", "plug", "sensor"],
+            },
+            config: {
+              type: "object",
+              properties: {
+                mounting: { type: "string", enum: ["ceiling", "wall", "table", "floor"] },
+                dimmable: { type: "boolean" },
+                colorTemperature: { type: "boolean" },
+                mode: { type: "string", enum: ["toggle", "momentary", "dimmer"] },
+                channels: { type: "number", minimum: 1, maximum: 4 },
+                energyMonitoring: { type: "boolean" },
+                measures: {
+                  type: "array",
+                  minItems: 1,
+                  items: {
+                    type: "string",
+                    enum: ["temperature", "occupancy", "contact"],
+                  },
+                },
+              },
+              additionalProperties: false,
+            },
             roomLabel: { type: "string", minLength: 1, maxLength: 80 },
             x: { type: "number", minimum: 0, maximum: 1000 },
             y: { type: "number", minimum: 0, maximum: 720 },
           },
-          required: ["fixtureLabel"],
+          required: ["deviceLabel"],
           anyOf: [
             { required: ["label"] },
+            { required: ["type"] },
+            { required: ["config"] },
             { required: ["roomLabel"] },
             { required: ["x"] },
             { required: ["y"] },
@@ -422,14 +470,32 @@ export async function registerPortegoTools(
           additionalProperties: false,
         },
         execute: async (input) => {
-          const home = await actions.updateFixture(input as UpdateFixtureInput);
-          const fixture = home.fixtures.find(
+          const before = actions.getHome();
+          const previousDevice = before.devices.find(
+            (candidate) =>
+              candidate.label.toLowerCase() === String(input.deviceLabel).toLowerCase(),
+          );
+          const hadBinding = before.bindings.some(
+            (candidate) => candidate.deviceId === previousDevice?.id,
+          );
+          const home = await actions.updateDevice(input as UpdateDeviceInput);
+          const device = home.devices.find(
             (candidate) =>
               candidate.label.toLowerCase() ===
-              String(input.label ?? input.fixtureLabel).toLowerCase(),
+              String(input.label ?? input.deviceLabel).toLowerCase(),
           );
-          onActivity?.(`Codex updated ${fixture?.label ?? "a fixture"}`);
-          return { changed: true, fixture, revision: home.revision };
+          const hasBinding = home.bindings.some((candidate) => candidate.deviceId === device?.id);
+          const bindingRemoved = hadBinding && !hasBinding;
+          onActivity?.(`Codex updated ${device?.label ?? "a device"}`);
+          return {
+            changed: true,
+            device,
+            bindingRemoved,
+            revision: home.revision,
+            verification: bindingRemoved
+              ? "The device was updated and its incompatible hardware binding was removed."
+              : "The device was updated and its binding remains compatible.",
+          };
         },
       },
       options,
@@ -437,20 +503,20 @@ export async function registerPortegoTools(
 
     await modelContext.registerTool(
       {
-        name: "home.remove_fixture",
-        title: "Remove a fixture",
-        description: "Remove one named fixture and its physical-device binding.",
+        name: "home.remove_device",
+        title: "Remove a device",
+        description: "Remove one named device and its physical-device binding.",
         inputSchema: {
           type: "object",
           properties: {
-            fixtureLabel: { type: "string", minLength: 1, maxLength: 80 },
+            deviceLabel: { type: "string", minLength: 1, maxLength: 80 },
           },
-          required: ["fixtureLabel"],
+          required: ["deviceLabel"],
           additionalProperties: false,
         },
         execute: async (input) => {
-          const home = await actions.removeFixture(input as RemoveFixtureInput);
-          onActivity?.(`Codex removed ${String(input.fixtureLabel)}`);
+          const home = await actions.removeDevice(input as RemoveDeviceInput);
+          onActivity?.(`Codex removed ${String(input.deviceLabel)}`);
           return { changed: true, revision: home.revision };
         },
       },
@@ -460,26 +526,26 @@ export async function registerPortegoTools(
     await modelContext.registerTool(
       {
         name: "device.bind",
-        title: "Bind a fixture to a device",
+        title: "Bind a device to physical hardware",
         description:
-          "Bind or rebind one designed fixture to one compatible known device endpoint. A device and fixture can each have only one active binding.",
+          "Bind or rebind one designed device to a compatible discovered hardware endpoint. Both sides can have only one active binding.",
         inputSchema: {
           type: "object",
           properties: {
-            fixtureLabel: { type: "string", minLength: 1, maxLength: 80 },
+            deviceLabel: { type: "string", minLength: 1, maxLength: 80 },
             endpointLabel: { type: "string", minLength: 1, maxLength: 120 },
           },
-          required: ["fixtureLabel", "endpointLabel"],
+          required: ["deviceLabel", "endpointLabel"],
           additionalProperties: false,
         },
         execute: async (input) => {
-          const home = await actions.bindFixture(input as BindFixtureInput);
-          const fixture = home.fixtures.find(
+          const home = await actions.bindDevice(input as BindDeviceInput);
+          const device = home.devices.find(
             (candidate) =>
-              candidate.label.toLowerCase() === String(input.fixtureLabel).toLowerCase(),
+              candidate.label.toLowerCase() === String(input.deviceLabel).toLowerCase(),
           );
-          const binding = home.bindings.find((candidate) => candidate.fixtureId === fixture?.id);
-          onActivity?.(`Codex bound ${String(input.fixtureLabel)}`);
+          const binding = home.bindings.find((candidate) => candidate.deviceId === device?.id);
+          onActivity?.(`Codex bound ${String(input.deviceLabel)}`);
           return { changed: true, binding, revision: home.revision };
         },
       },
@@ -489,19 +555,19 @@ export async function registerPortegoTools(
     await modelContext.registerTool(
       {
         name: "device.unbind",
-        title: "Unbind a fixture",
-        description: "Remove the physical-device binding from one designed fixture.",
+        title: "Unbind a device",
+        description: "Disconnect one designed device from its physical hardware endpoint.",
         inputSchema: {
           type: "object",
           properties: {
-            fixtureLabel: { type: "string", minLength: 1, maxLength: 80 },
+            deviceLabel: { type: "string", minLength: 1, maxLength: 80 },
           },
-          required: ["fixtureLabel"],
+          required: ["deviceLabel"],
           additionalProperties: false,
         },
         execute: async (input) => {
-          const home = await actions.unbindFixture(input as UnbindFixtureInput);
-          onActivity?.(`Codex unbound ${String(input.fixtureLabel)}`);
+          const home = await actions.unbindDevice(input as UnbindDeviceInput);
+          onActivity?.(`Codex unbound ${String(input.deviceLabel)}`);
           return { changed: true, revision: home.revision };
         },
       },
@@ -560,40 +626,40 @@ export async function registerPortegoTools(
     await modelContext.registerTool(
       {
         name: "device.set_state",
-        title: "Control a fixture",
+        title: "Control a device",
         description:
-          "Set power or brightness for one named fixture that is bound to a reachable device. This has an immediate simulated physical side effect.",
+          "Set a supported power or brightness state for one named device bound to reachable hardware. This has an immediate simulated physical side effect.",
         inputSchema: {
           type: "object",
           properties: {
-            fixtureLabel: {
+            deviceLabel: {
               type: "string",
               minLength: 1,
               maxLength: 80,
-              description: "Exact visible fixture name.",
+              description: "Exact visible device name.",
             },
             on: { type: "boolean" },
             brightness: { type: "number", minimum: 0, maximum: 100 },
           },
-          required: ["fixtureLabel"],
+          required: ["deviceLabel"],
           additionalProperties: false,
         },
         execute: async (input) => {
-          const home = await actions.setFixtureState(input as SetFixtureStateInput);
-          const fixture = home.fixtures.find(
-            (item) => item.label.toLowerCase() === String(input.fixtureLabel).toLowerCase(),
+          const home = await actions.setDeviceState(input as SetDeviceStateInput);
+          const device = home.devices.find(
+            (item) => item.label.toLowerCase() === String(input.deviceLabel).toLowerCase(),
           );
-          const binding = home.bindings.find((item) => item.fixtureId === fixture?.id);
+          const binding = home.bindings.find((item) => item.deviceId === device?.id);
           const endpoint = home.endpoints.find((item) => item.id === binding?.endpointId);
           onActivity?.(
             "Codex turned " +
-              (fixture?.label ?? "the fixture") +
+              (device?.label ?? "the device") +
               " " +
               (endpoint?.reportedState.on ? "on" : "off"),
           );
           return {
             changed: true,
-            fixture,
+            device,
             reportedState: endpoint?.reportedState,
             revision: home.revision,
             verification: "The canvas now reflects the confirmed reported state.",
@@ -608,7 +674,7 @@ export async function registerPortegoTools(
         name: "home.reset_demo",
         title: "Reset the demo home",
         description:
-          "Remove all rooms, fixtures, and bindings from this Portego demo. This is destructive but affects only the temporary home.",
+          "Remove all rooms, devices, and bindings from this Portego demo. This is destructive but affects only the temporary home.",
         inputSchema: {
           type: "object",
           properties: {},
@@ -632,7 +698,7 @@ export async function registerPortegoTools(
         name: "home.apply_changes",
         title: "Apply several home changes",
         description:
-          "Apply up to 50 room, fixture, binding, or opening changes as one atomic edit. If any change fails, none are saved and one undo reverses the entire set.",
+          "Apply up to 50 room, device, binding, or opening changes as one atomic edit. If any change fails, none are saved and one undo reverses the entire set.",
         inputSchema: {
           type: "object",
           properties: {
@@ -649,9 +715,9 @@ export async function registerPortegoTools(
                       "add_room",
                       "update_room",
                       "remove_room",
-                      "add_fixture",
-                      "update_fixture",
-                      "remove_fixture",
+                      "add_device",
+                      "update_device",
+                      "remove_device",
                       "bind_device",
                       "unbind_device",
                       "add_opening",

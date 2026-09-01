@@ -1,9 +1,9 @@
 "use client";
 
 import type {
-  Fixture,
+  Device,
   HomeDocument,
-  MoveFixtureInput,
+  MoveDeviceInput,
   Room,
   UpdateRoomInput,
 } from "@portego/home-model";
@@ -38,15 +38,15 @@ const KonvaHomeCanvas = dynamic(
 type HomeCanvasProps = {
   home: HomeDocument;
   floorName: string;
-  selectedFixtureId?: string;
+  selectedDeviceId?: string;
   selectedRoomId?: string;
-  onSelectFixture: (fixture?: Fixture) => void;
+  onSelectDevice: (device?: Device) => void;
   onSelectRoom: (room?: Room) => void;
   onSelectHome: () => void;
   onSelectFloor: () => void;
   onUpdateRoom: (input: UpdateRoomInput) => void;
-  onMoveFixture: (input: MoveFixtureInput) => void;
-  onToggleFixture: (fixture: Fixture) => void;
+  onMoveDevice: (input: MoveDeviceInput) => void;
+  onToggleDevice: (device: Device) => void;
   onBuildDemo: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -58,15 +58,15 @@ type HomeCanvasProps = {
 export function HomeCanvas({
   home,
   floorName,
-  selectedFixtureId,
+  selectedDeviceId,
   selectedRoomId,
-  onSelectFixture,
+  onSelectDevice,
   onSelectRoom,
   onSelectHome,
   onSelectFloor,
   onUpdateRoom,
-  onMoveFixture,
-  onToggleFixture,
+  onMoveDevice,
+  onToggleDevice,
   onBuildDemo,
   canUndo,
   canRedo,
@@ -122,13 +122,13 @@ export function HomeCanvas({
         </div>
         <KonvaHomeCanvas
           home={home}
-          selectedFixtureId={selectedFixtureId}
+          selectedDeviceId={selectedDeviceId}
           selectedRoomId={selectedRoomId}
-          onSelectFixture={onSelectFixture}
+          onSelectDevice={onSelectDevice}
           onSelectRoom={onSelectRoom}
           onUpdateRoom={onUpdateRoom}
-          onMoveFixture={onMoveFixture}
-          onToggleFixture={onToggleFixture}
+          onMoveDevice={onMoveDevice}
+          onToggleDevice={onToggleDevice}
         />
 
         {home.rooms.length === 0 ? (
@@ -161,10 +161,10 @@ export function HomeCanvas({
 
         <div className="canvas-accessible-actions">
           <span>Select an item on the spatial editor:</span>
-          {home.fixtures.map((fixture) => (
-            <button type="button" key={fixture.id} onClick={() => onSelectFixture(fixture)}>
+          {home.devices.map((device) => (
+            <button type="button" key={device.id} onClick={() => onSelectDevice(device)}>
               <Bot size={14} aria-hidden="true" />
-              {fixture.label}
+              {device.label}
             </button>
           ))}
         </div>

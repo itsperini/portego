@@ -8,12 +8,12 @@ Accepted
 
 The pre-login canvas is intentionally temporary, but temporary should not mean
 fragile. Conversational editing needs individual rename and delete operations,
-explicit fixture-to-device bindings, room relationships, and a way to reverse a
+explicit designed-device-to-hardware bindings, room relationships, and a way to reverse a
 mistake without resetting the entire home.
 
 ## Decision
 
-The canonical `HomeDocument` now models rooms, fixtures, bindings, endpoints,
+The canonical `HomeDocument` now models rooms, devices, bindings, endpoints,
 and wall openings. A door can reference another room; a window or exterior door
 can terminate outside the modeled home.
 
@@ -27,10 +27,10 @@ history. Device control does, because it is an intentional user-visible action.
 
 ## Consequences
 
-- Individual delete operations cascade predictably to dependent fixtures,
+- Individual delete operations cascade predictably to dependent devices,
   bindings, and room relationships.
 - A binding can be explicitly created, removed, or reassigned without changing
-  the designed fixture.
+  the designed device.
 - Chatbots can make several related changes without leaving a partial layout.
 - Undo and redo remain in memory with the pre-login home. Account-backed event
   history and persistence are deferred to the authenticated product.

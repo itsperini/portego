@@ -16,8 +16,8 @@ through the same model used by the visible interface and device control path.
 The first implementation will keep all runtimes and shared contracts in one
 pnpm monorepo. It will prove one complete path:
 
-1. create a room and light fixture from a WebMCP tool;
-2. bind the fixture to one endpoint exposed by a simulated gateway;
+1. create a room and light device from a WebMCP tool;
+2. bind the device to one endpoint exposed by a simulated gateway;
 3. control the bound endpoint through MCP;
 4. reconcile the reported state into the canvas.
 
@@ -32,4 +32,4 @@ server and gateway are running.
   demo code.
 - Domain actions must be reusable by UI controls, WebMCP handlers, API routes,
   and MCP tools.
-- The fixture-to-device binding remains explicit even with only one device.
+- The designed-device-to-hardware-endpoint binding remains explicit even with one endpoint.

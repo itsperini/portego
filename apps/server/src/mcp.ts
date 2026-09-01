@@ -13,7 +13,7 @@ export function createPortegoMcpServer(service: PortegoService): McpServer {
     {
       title: "Get home overview",
       description:
-        "Read the current Portego home, including rooms, fixtures, bindings, device state, and gateway status.",
+        "Read the current Portego home, including rooms, devices, bindings, device state, and gateway status.",
       inputSchema: z.object({}),
     },
     async () => {
@@ -27,8 +27,8 @@ export function createPortegoMcpServer(service: PortegoService): McpServer {
               " has " +
               home.rooms.length +
               " rooms, " +
-              home.fixtures.length +
-              " fixtures, and gateway status " +
+              home.devices.length +
+              " devices, and gateway status " +
               home.gateway.status +
               ".",
           },
@@ -41,19 +41,19 @@ export function createPortegoMcpServer(service: PortegoService): McpServer {
   server.registerTool(
     "device.set_state",
     {
-      title: "Set fixture state",
+      title: "Set device state",
       description:
-        "Set the power or brightness of one named, bound fixture. This changes a simulated physical device in the walking skeleton.",
+        "Set the supported power or brightness of one named device bound to simulated hardware.",
       inputSchema: z.object({
-        fixtureLabel: z.string().min(1).max(80),
+        deviceLabel: z.string().min(1).max(80),
         on: z.boolean().optional(),
         brightness: z.number().int().min(0).max(100).optional(),
       }),
     },
-    async ({ fixtureLabel, on, brightness }) => {
+    async ({ deviceLabel, on, brightness }) => {
       try {
-        const result = await service.setFixtureState({
-          fixtureLabel,
+        const result = await service.setDeviceState({
+          deviceLabel,
           ...(on !== undefined ? { on } : {}),
           ...(brightness !== undefined ? { brightness } : {}),
         });
@@ -62,7 +62,7 @@ export function createPortegoMcpServer(service: PortegoService): McpServer {
             {
               type: "text",
               text:
-                fixtureLabel +
+                deviceLabel +
                 " now reports " +
                 (result.state.on ? "on" : "off") +
                 (result.state.brightness !== undefined
@@ -71,7 +71,7 @@ export function createPortegoMcpServer(service: PortegoService): McpServer {
             },
           ],
           structuredContent: {
-            fixtureId: result.fixtureId,
+            deviceId: result.deviceId,
             endpointId: result.endpointId,
             state: result.state,
             revision: result.home.revision,
@@ -82,7 +82,7 @@ export function createPortegoMcpServer(service: PortegoService): McpServer {
           content: [
             {
               type: "text",
-              text: error instanceof Error ? error.message : "The fixture could not be controlled.",
+              text: error instanceof Error ? error.message : "The device could not be controlled.",
             },
           ],
           isError: true,

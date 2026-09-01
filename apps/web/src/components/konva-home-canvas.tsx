@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  endpointForFixture,
-  type Fixture,
+  type Device,
+  endpointForDevice,
   type HomeDocument,
-  type MoveFixtureInput,
+  type MoveDeviceInput,
   type Opening,
   type Room,
   type UpdateRoomInput,
@@ -35,13 +35,13 @@ type Guide = {
 
 type KonvaHomeCanvasProps = {
   home: HomeDocument;
-  selectedFixtureId?: string;
+  selectedDeviceId?: string;
   selectedRoomId?: string;
-  onSelectFixture: (fixture?: Fixture) => void;
+  onSelectDevice: (device?: Device) => void;
   onSelectRoom: (room?: Room) => void;
   onUpdateRoom: (input: UpdateRoomInput) => void;
-  onMoveFixture: (input: MoveFixtureInput) => void;
-  onToggleFixture: (fixture: Fixture) => void;
+  onMoveDevice: (input: MoveDeviceInput) => void;
+  onToggleDevice: (device: Device) => void;
 };
 
 function OpeningShape({ opening, room }: { opening: Opening; room: Room }) {
@@ -250,30 +250,30 @@ function RoomShape({ room, selected, viewportScale, onSelect, onGuide, onCommit 
   );
 }
 
-type FixtureShapeProps = {
-  fixture: Fixture;
+type DeviceShapeProps = {
+  device: Device;
   home: HomeDocument;
   selected: boolean;
   onSelect: () => void;
   onGuide: (guide: Guide) => void;
-  onCommit: (input: MoveFixtureInput) => void;
+  onCommit: (input: MoveDeviceInput) => void;
   onToggle: () => void;
 };
 
-function FixtureShape({
-  fixture,
+function DeviceShape({
+  device,
   home,
   selected,
   onSelect,
   onGuide,
   onCommit,
   onToggle,
-}: FixtureShapeProps) {
-  const endpoint = endpointForFixture(home, fixture.id);
-  const room = home.rooms.find((candidate) => candidate.id === fixture.roomId);
+}: DeviceShapeProps) {
+  const endpoint = endpointForDevice(home, device.id);
+  const room = home.rooms.find((candidate) => candidate.id === device.roomId);
   const isOn = endpoint?.reportedState.on === true;
 
-  const snapFixturePosition = (node: Konva.Group) => {
+  const snapDevicePosition = (node: Konva.Group) => {
     if (!room) {
       return { x: snap(node.x()), y: snap(node.y()) };
     }
@@ -286,8 +286,8 @@ function FixtureShape({
 
   return (
     <Group
-      x={fixture.position.x}
-      y={fixture.position.y}
+      x={device.position.x}
+      y={device.position.y}
       draggable
       onClick={(event) => {
         event.cancelBubble = true;
@@ -299,18 +299,18 @@ function FixtureShape({
       }}
       onDblClick={(event) => {
         event.cancelBubble = true;
-        onToggle();
+        if (device.capabilities.includes("power")) onToggle();
       }}
       onDblTap={(event) => {
         event.cancelBubble = true;
-        onToggle();
+        if (device.capabilities.includes("power")) onToggle();
       }}
       onDragStart={() => onSelect()}
-      onDragMove={(event) => snapFixturePosition(event.target as Konva.Group)}
+      onDragMove={(event) => snapDevicePosition(event.target as Konva.Group)}
       onDragEnd={(event) => {
-        const position = snapFixturePosition(event.target as Konva.Group);
+        const position = snapDevicePosition(event.target as Konva.Group);
         onGuide({});
-        onCommit({ fixtureId: fixture.id, ...position });
+        onCommit({ deviceId: device.id, ...position });
       }}
     >
       {isOn ? (
@@ -336,23 +336,73 @@ function FixtureShape({
         strokeWidth={1.6}
         listening={false}
       />
-      <Line
-        points={[-6, 0, -4, -6, 0, -9, 4, -6, 6, 0, 3, 7, -3, 7, -6, 0]}
-        closed
-        stroke="#173146"
-        strokeWidth={1.6}
-        lineCap="round"
-        lineJoin="round"
-        listening={false}
-      />
-      <Line
-        points={[-4, 11, 4, 11]}
-        stroke="#173146"
-        strokeWidth={1.5}
-        lineCap="round"
-        listening={false}
-      />
-      {isOn ? (
+      {device.type === "light" ? (
+        <>
+          <Line
+            points={[-6, 0, -4, -6, 0, -9, 4, -6, 6, 0, 3, 7, -3, 7, -6, 0]}
+            closed
+            stroke="#173146"
+            strokeWidth={1.6}
+            lineCap="round"
+            lineJoin="round"
+            listening={false}
+          />
+          <Line
+            points={[-4, 11, 4, 11]}
+            stroke="#173146"
+            strokeWidth={1.5}
+            lineCap="round"
+            listening={false}
+          />
+        </>
+      ) : device.type === "switch" ? (
+        <>
+          <Rect
+            x={-7}
+            y={-9}
+            width={14}
+            height={18}
+            cornerRadius={3}
+            stroke="#173146"
+            strokeWidth={1.5}
+            listening={false}
+          />
+          <Line points={[0, -5, 0, 1]} stroke="#173146" strokeWidth={1.7} listening={false} />
+          <Circle y={5} radius={1.4} fill="#173146" listening={false} />
+        </>
+      ) : device.type === "plug" ? (
+        <>
+          <Line
+            points={[-7, -2, -7, 3, -3, 7, 3, 7, 7, 3, 7, -2]}
+            stroke="#173146"
+            strokeWidth={1.6}
+            lineCap="round"
+            lineJoin="round"
+            listening={false}
+          />
+          <Line points={[-4, -8, -4, -2]} stroke="#173146" strokeWidth={1.7} listening={false} />
+          <Line points={[4, -8, 4, -2]} stroke="#173146" strokeWidth={1.7} listening={false} />
+        </>
+      ) : (
+        <>
+          <Circle radius={3} fill="#173146" listening={false} />
+          <Line
+            points={[-6, -5, -9, 0, -6, 5]}
+            stroke="#173146"
+            strokeWidth={1.5}
+            lineCap="round"
+            listening={false}
+          />
+          <Line
+            points={[6, -5, 9, 0, 6, 5]}
+            stroke="#173146"
+            strokeWidth={1.5}
+            lineCap="round"
+            listening={false}
+          />
+        </>
+      )}
+      {isOn && device.type === "light" ? (
         <>
           <Line points={[0, -22, 0, -29]} stroke="#a66a09" strokeWidth={1.5} />
           <Line points={[20, -12, 26, -16]} stroke="#a66a09" strokeWidth={1.5} />
@@ -364,7 +414,7 @@ function FixtureShape({
         y={35}
         width={150}
         align="center"
-        text={fixture.label}
+        text={device.label}
         fontFamily="Manrope Variable, Manrope, sans-serif"
         fontSize={11}
         fontStyle="bold"
@@ -389,13 +439,13 @@ function FixtureShape({
 
 export function KonvaHomeCanvas({
   home,
-  selectedFixtureId,
+  selectedDeviceId,
   selectedRoomId,
-  onSelectFixture,
+  onSelectDevice,
   onSelectRoom,
   onUpdateRoom,
-  onMoveFixture,
-  onToggleFixture,
+  onMoveDevice,
+  onToggleDevice,
 }: KonvaHomeCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -484,7 +534,7 @@ export function KonvaHomeCanvas({
     if (!pointer || (event.target !== stage && event.target.name() !== "canvas-background")) {
       return;
     }
-    onSelectFixture(undefined);
+    onSelectDevice(undefined);
     onSelectRoom(undefined);
     panRef.current = {
       active: true,
@@ -556,7 +606,7 @@ export function KonvaHomeCanvas({
               selected={selectedRoomId === room.id}
               viewportScale={viewport.scale}
               onSelect={() => {
-                onSelectFixture(undefined);
+                onSelectDevice(undefined);
                 onSelectRoom(room);
               }}
               onGuide={setGuide}
@@ -567,19 +617,19 @@ export function KonvaHomeCanvas({
             const room = home.rooms.find((candidate) => candidate.id === opening.roomId);
             return room ? <OpeningShape key={opening.id} opening={opening} room={room} /> : null;
           })}
-          {home.fixtures.map((fixture) => (
-            <FixtureShape
-              key={fixture.id}
-              fixture={fixture}
+          {home.devices.map((device) => (
+            <DeviceShape
+              key={device.id}
+              device={device}
               home={home}
-              selected={selectedFixtureId === fixture.id}
+              selected={selectedDeviceId === device.id}
               onSelect={() => {
                 onSelectRoom(undefined);
-                onSelectFixture(fixture);
+                onSelectDevice(device);
               }}
               onGuide={setGuide}
-              onCommit={onMoveFixture}
-              onToggle={() => onToggleFixture(fixture)}
+              onCommit={onMoveDevice}
+              onToggle={() => onToggleDevice(device)}
             />
           ))}
           {guide.x !== undefined ? (
