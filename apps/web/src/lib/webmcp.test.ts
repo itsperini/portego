@@ -1,10 +1,18 @@
 import {
   addFixture,
+  addOpening,
   addRoom,
+  applyHomeChanges,
   applyReportedState,
+  bindFixtureToEndpoint,
   createDemoHome,
   moveFixture,
+  removeFixture,
+  removeOpening,
+  removeRoom,
   setDesiredFixtureState,
+  unbindFixture,
+  updateFixture,
   updateRoomGeometry,
 } from "@portego/home-model";
 import { describe, expect, it, vi } from "vitest";
@@ -30,6 +38,10 @@ describe("Portego WebMCP tools", () => {
         home = updateRoomGeometry(home, input);
         return home;
       },
+      removeRoom: async (input) => {
+        home = removeRoom(home, input);
+        return home;
+      },
       addFixture: async (input) => {
         home = addFixture(home, input);
         return home;
@@ -38,6 +50,36 @@ describe("Portego WebMCP tools", () => {
         home = moveFixture(home, input);
         return home;
       },
+      updateFixture: async (input) => {
+        home = updateFixture(home, input);
+        return home;
+      },
+      removeFixture: async (input) => {
+        home = removeFixture(home, input);
+        return home;
+      },
+      bindFixture: async (input) => {
+        home = bindFixtureToEndpoint(home, input);
+        return home;
+      },
+      unbindFixture: async (input) => {
+        home = unbindFixture(home, input);
+        return home;
+      },
+      addOpening: async (input) => {
+        home = addOpening(home, input);
+        return home;
+      },
+      removeOpening: async (input) => {
+        home = removeOpening(home, input);
+        return home;
+      },
+      applyChanges: async (input) => {
+        home = applyHomeChanges(home, input);
+        return home;
+      },
+      undo: async () => home,
+      redo: async () => home,
       setFixtureState: async (input) => {
         const desired = setDesiredFixtureState(home, input);
         home = applyReportedState(desired.home, desired.endpoint.id, desired.requestedState);
@@ -50,7 +92,7 @@ describe("Portego WebMCP tools", () => {
     });
 
     expect(registration.status).toBe("ready");
-    expect(tools.size).toBe(7);
+    expect(tools.size).toBe(17);
     await tools
       .get("home.add_room")
       ?.execute({ label: "Kitchen" }, { signal: new AbortController().signal });
@@ -113,8 +155,18 @@ describe("Portego WebMCP tools", () => {
         getHome: () => createDemoHome(),
         addRoom: async () => createDemoHome(),
         updateRoom: async () => createDemoHome(),
+        removeRoom: async () => createDemoHome(),
         addFixture: async () => createDemoHome(),
         moveFixture: async () => createDemoHome(),
+        updateFixture: async () => createDemoHome(),
+        removeFixture: async () => createDemoHome(),
+        bindFixture: async () => createDemoHome(),
+        unbindFixture: async () => createDemoHome(),
+        addOpening: async () => createDemoHome(),
+        removeOpening: async () => createDemoHome(),
+        applyChanges: async () => createDemoHome(),
+        undo: async () => createDemoHome(),
+        redo: async () => createDemoHome(),
         setFixtureState: async () => createDemoHome(),
         reset: async () => createDemoHome(),
       },

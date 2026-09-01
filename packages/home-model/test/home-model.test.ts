@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   addFixture,
+  addOpening,
   addRoom,
+  applyHomeChanges,
   applyReportedState,
+  bindFixtureToEndpoint,
   createDemoHome,
   endpointForFixture,
   moveFixture,
+  removeRoom,
   setDesiredFixtureState,
+  unbindFixture,
+  updateFixture,
   updateRoomGeometry,
 } from "../src/index.js";
 
@@ -67,5 +73,70 @@ describe("home model", () => {
 
     home = moveFixture(home, { fixtureLabel: "Kitchen ceiling", x: 999, y: 0 });
     expect(home.fixtures[0]?.position).toEqual({ x: 572, y: 188 });
+  });
+
+  it("renames, reassigns, binds, relates, and removes home objects", () => {
+    let home = createDemoHome();
+    home = addRoom(home, { label: "Kitchen", x: 0, y: 0, width: 300, height: 200 });
+    home = addRoom(home, { label: "Hall", x: 300, y: 0, width: 200, height: 200 });
+    home = addFixture(home, {
+      roomLabel: "Kitchen",
+      label: "Ceiling light",
+      type: "light",
+      autoBind: false,
+    });
+    home = updateRoomGeometry(home, { roomLabel: "Hall", label: "Entry" });
+    home = updateFixture(home, {
+      fixtureLabel: "Ceiling light",
+      label: "Entry light",
+      roomLabel: "Entry",
+    });
+    home = bindFixtureToEndpoint(home, {
+      fixtureLabel: "Entry light",
+      endpointLabel: "Simulator light 01",
+    });
+    home = addOpening(home, {
+      roomLabel: "Kitchen",
+      connectsToRoomLabel: "Entry",
+      label: "Kitchen door",
+      type: "door",
+      wall: "right",
+    });
+
+    expect(home.fixtures[0]).toMatchObject({ label: "Entry light", roomId: home.rooms[1]?.id });
+    expect(home.bindings).toHaveLength(1);
+    expect(home.openings[0]).toMatchObject({ type: "door", connectsToRoomId: home.rooms[1]?.id });
+
+    home = unbindFixture(home, { fixtureLabel: "Entry light" });
+    expect(home.bindings).toHaveLength(0);
+    home = removeRoom(home, { roomLabel: "Entry" });
+    expect(home.fixtures).toHaveLength(0);
+    expect(home.openings).toHaveLength(0);
+  });
+
+  it("applies conversational change sets without mutating the original on failure", () => {
+    const original = createDemoHome();
+    const complete = applyHomeChanges(original, {
+      changes: [
+        { op: "add_room", input: { label: "Studio" } },
+        {
+          op: "add_fixture",
+          input: { roomLabel: "Studio", label: "Desk light", type: "light" },
+        },
+      ],
+    });
+    expect(complete.rooms).toHaveLength(1);
+    expect(complete.fixtures).toHaveLength(1);
+    expect(original.rooms).toHaveLength(0);
+
+    expect(() =>
+      applyHomeChanges(original, {
+        changes: [
+          { op: "add_room", input: { label: "Studio" } },
+          { op: "add_room", input: { label: "Studio" } },
+        ],
+      }),
+    ).toThrow("already exists");
+    expect(original.rooms).toHaveLength(0);
   });
 });

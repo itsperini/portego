@@ -5,6 +5,7 @@ import {
   type Fixture,
   type HomeDocument,
   type MoveFixtureInput,
+  type Opening,
   type Room,
   type UpdateRoomInput,
 } from "@portego/home-model";
@@ -35,11 +36,60 @@ type Guide = {
 type KonvaHomeCanvasProps = {
   home: HomeDocument;
   selectedFixtureId?: string;
+  selectedRoomId?: string;
   onSelectFixture: (fixture?: Fixture) => void;
+  onSelectRoom: (room?: Room) => void;
   onUpdateRoom: (input: UpdateRoomInput) => void;
   onMoveFixture: (input: MoveFixtureInput) => void;
   onToggleFixture: (fixture: Fixture) => void;
 };
+
+function OpeningShape({ opening, room }: { opening: Opening; room: Room }) {
+  const horizontal = opening.wall === "top" || opening.wall === "bottom";
+  const span = opening.type === "door" ? 48 : 58;
+  const center = horizontal
+    ? {
+        x: room.x + room.width * opening.offset,
+        y: opening.wall === "top" ? room.y : room.y + room.height,
+      }
+    : {
+        x: opening.wall === "left" ? room.x : room.x + room.width,
+        y: room.y + room.height * opening.offset,
+      };
+  const gapPoints = horizontal
+    ? [center.x - span / 2, center.y, center.x + span / 2, center.y]
+    : [center.x, center.y - span / 2, center.x, center.y + span / 2];
+  const leafPoints = horizontal
+    ? [
+        center.x - span / 2,
+        center.y,
+        center.x - span / 2,
+        center.y + (opening.wall === "top" ? span * 0.72 : -span * 0.72),
+      ]
+    : [
+        center.x,
+        center.y - span / 2,
+        center.x + (opening.wall === "left" ? span * 0.72 : -span * 0.72),
+        center.y - span / 2,
+      ];
+
+  return (
+    <Group listening={false}>
+      <Line points={gapPoints} stroke="#f3f8f8" strokeWidth={12} lineCap="square" />
+      {opening.type === "window" ? (
+        <>
+          <Line points={gapPoints} stroke="#2d7c79" strokeWidth={5} lineCap="square" />
+          <Line points={gapPoints} stroke="#f3f8f8" strokeWidth={1.5} lineCap="square" />
+        </>
+      ) : (
+        <>
+          <Line points={gapPoints} stroke="#9fb4be" strokeWidth={1.5} dash={[5, 4]} />
+          <Line points={leafPoints} stroke="#173146" strokeWidth={3} lineCap="square" />
+        </>
+      )}
+    </Group>
+  );
+}
 
 const snap = (value: number): number => Math.round(value / GRID_SIZE) * GRID_SIZE;
 const clamp = (value: number, minimum: number, maximum: number): number =>
@@ -340,7 +390,9 @@ function FixtureShape({
 export function KonvaHomeCanvas({
   home,
   selectedFixtureId,
+  selectedRoomId,
   onSelectFixture,
+  onSelectRoom,
   onUpdateRoom,
   onMoveFixture,
   onToggleFixture,
@@ -354,7 +406,6 @@ export function KonvaHomeCanvas({
   }>({ active: false, start: { x: 0, y: 0 }, origin: { x: 0, y: 0 } });
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
-  const [selectedRoomId, setSelectedRoomId] = useState<string>();
   const [guide, setGuide] = useState<Guide>({});
 
   const resetViewport = useCallback(
@@ -381,12 +432,6 @@ export function KonvaHomeCanvas({
     observer.observe(host);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    if (selectedFixtureId) {
-      setSelectedRoomId(undefined);
-    }
-  }, [selectedFixtureId]);
 
   const gridLines = useMemo(() => {
     const lines: Array<{ key: string; points: number[]; major: boolean }> = [];
@@ -440,7 +485,7 @@ export function KonvaHomeCanvas({
       return;
     }
     onSelectFixture(undefined);
-    setSelectedRoomId(undefined);
+    onSelectRoom(undefined);
     panRef.current = {
       active: true,
       start: pointer,
@@ -512,12 +557,16 @@ export function KonvaHomeCanvas({
               viewportScale={viewport.scale}
               onSelect={() => {
                 onSelectFixture(undefined);
-                setSelectedRoomId(room.id);
+                onSelectRoom(room);
               }}
               onGuide={setGuide}
               onCommit={onUpdateRoom}
             />
           ))}
+          {home.openings.map((opening) => {
+            const room = home.rooms.find((candidate) => candidate.id === opening.roomId);
+            return room ? <OpeningShape key={opening.id} opening={opening} room={room} /> : null;
+          })}
           {home.fixtures.map((fixture) => (
             <FixtureShape
               key={fixture.id}
@@ -525,7 +574,7 @@ export function KonvaHomeCanvas({
               home={home}
               selected={selectedFixtureId === fixture.id}
               onSelect={() => {
-                setSelectedRoomId(undefined);
+                onSelectRoom(undefined);
                 onSelectFixture(fixture);
               }}
               onGuide={setGuide}

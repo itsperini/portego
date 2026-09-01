@@ -23,7 +23,7 @@ walking skeleton is deliberately small but complete:
     adapters/
       simulated/           deterministic virtual device adapter
     packages/
-      home-model/          rooms, fixtures, endpoints, bindings, state
+      home-model/          rooms, fixtures, openings, bindings, state
       gateway-protocol/    versioned cloud-gateway messages
     docs/
       architecture/        architecture decision records
@@ -32,6 +32,7 @@ walking skeleton is deliberately small but complete:
 The important separation is preserved in the domain model:
 
     Room -> Fixture -> Binding -> DeviceEndpoint
+      \-> Opening -> related Room / outside
 
 A fixture represents the stable human intent (“Kitchen ceiling”). A device
 endpoint represents replaceable hardware. Automations and conversations should
@@ -67,13 +68,23 @@ Open the canvas in the Codex built-in browser and ask:
 
 > Create a kitchen, then add a ceiling light and turn it on at 40 percent.
 
-The top-level page registers seven imperative site tools:
+The top-level page registers 17 imperative site tools:
 
 - home.get_document
 - home.add_room
 - home.update_room
+- home.remove_room
 - home.add_fixture
 - home.move_fixture
+- home.update_fixture
+- home.remove_fixture
+- home.add_opening
+- home.remove_opening
+- home.apply_changes
+- home.undo
+- home.redo
+- device.bind
+- device.unbind
 - device.set_state
 - home.reset_demo
 
@@ -88,9 +99,19 @@ the canonical `HomeDocument`. It supports:
 - dragging rooms and fixtures with a 20-unit grid snap;
 - resizing rooms with eight handles;
 - keeping fixtures constrained to their room;
+- renaming and individually removing rooms and fixtures;
+- moving fixtures between rooms;
+- explicit device binding, unbinding, and reassignment;
+- semantic doors and windows, including room-to-room relationships;
+- atomic conversational change sets with undo and redo;
 - pointer-centered wheel zoom and blank-space panning;
 - zoom controls and fit-to-home;
 - semantic room and fixture updates through the API and WebMCP.
+
+Selecting a fixture opens a floating property card over the canvas for naming,
+room assignment, device binding, power, brightness, and removal. Selecting a
+room opens the equivalent room card for naming, removal, and wall openings. The
+canvas remains the primary workspace; there is no permanent right inspector.
 
 Portego stores room and fixture geometry, not serialized Konva nodes. Manual,
 API, and conversational edits therefore produce the same validated model.
@@ -108,8 +129,9 @@ tests, and creates production builds.
 - Render: apply render.yaml for the server and PostgreSQL.
 - Linux gateway: build gateway/agent for ARM64 or AMD64.
 
-Production authentication, persistent database storage, gateway claiming, and a
-real protocol adapter are intentionally outside this first walking skeleton.
+Production authentication, persistent database storage, gateway claiming,
+device discovery/pairing, and a real protocol adapter are intentionally outside
+this pre-login walking skeleton.
 
 The detailed product and engineering blueprint is maintained one directory
 above this repository in PORTEGO_PROJECT_BLUEPRINT.md.

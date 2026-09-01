@@ -60,6 +60,19 @@ export const bindingSchema = z.object({
   createdAt: z.string().datetime(),
 });
 
+export const wallSideSchema = z.enum(["top", "right", "bottom", "left"]);
+export const openingTypeSchema = z.enum(["door", "window"]);
+
+export const openingSchema = z.object({
+  id: z.string().min(1),
+  roomId: z.string().min(1),
+  connectsToRoomId: z.string().min(1).optional(),
+  label: z.string().trim().min(1).max(80).optional(),
+  type: openingTypeSchema,
+  wall: wallSideSchema,
+  offset: z.number().min(0.1).max(0.9),
+});
+
 export const gatewaySchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
@@ -76,6 +89,7 @@ export const homeDocumentSchema = z.object({
   fixtures: z.array(fixtureSchema),
   endpoints: z.array(deviceEndpointSchema),
   bindings: z.array(bindingSchema),
+  openings: z.array(openingSchema),
   gateway: gatewaySchema,
   updatedAt: z.string().datetime(),
 });
@@ -101,6 +115,7 @@ export const updateRoomInputSchema = z
   .object({
     roomId: z.string().min(1).optional(),
     roomLabel: z.string().trim().min(1).max(80).optional(),
+    label: z.string().trim().min(1).max(80).optional(),
     x: z.number().min(0).max(900).optional(),
     y: z.number().min(0).max(620).optional(),
     width: z.number().min(120).max(900).optional(),
@@ -114,9 +129,19 @@ export const updateRoomInputSchema = z
       input.x !== undefined ||
       input.y !== undefined ||
       input.width !== undefined ||
-      input.height !== undefined,
-    { message: "Provide at least one room geometry value." },
+      input.height !== undefined ||
+      input.label !== undefined,
+    { message: "Provide a new label or at least one room geometry value." },
   );
+
+export const removeRoomInputSchema = z
+  .object({
+    roomId: z.string().min(1).optional(),
+    roomLabel: z.string().trim().min(1).max(80).optional(),
+  })
+  .refine((input) => input.roomId || input.roomLabel, {
+    message: "Provide roomId or roomLabel.",
+  });
 
 export const moveFixtureInputSchema = z
   .object({
@@ -124,9 +149,83 @@ export const moveFixtureInputSchema = z
     fixtureLabel: z.string().trim().min(1).max(80).optional(),
     x: z.number().min(0).max(1000),
     y: z.number().min(0).max(720),
+    roomId: z.string().min(1).optional(),
+    roomLabel: z.string().trim().min(1).max(80).optional(),
   })
   .refine((input) => input.fixtureId || input.fixtureLabel, {
     message: "Provide fixtureId or fixtureLabel.",
+  });
+
+export const updateFixtureInputSchema = z
+  .object({
+    fixtureId: z.string().min(1).optional(),
+    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+    label: z.string().trim().min(1).max(80).optional(),
+    roomId: z.string().min(1).optional(),
+    roomLabel: z.string().trim().min(1).max(80).optional(),
+    x: z.number().min(0).max(1000).optional(),
+    y: z.number().min(0).max(720).optional(),
+  })
+  .refine((input) => input.fixtureId || input.fixtureLabel, {
+    message: "Provide fixtureId or fixtureLabel.",
+  })
+  .refine(
+    (input) =>
+      input.label !== undefined ||
+      input.roomId !== undefined ||
+      input.roomLabel !== undefined ||
+      input.x !== undefined ||
+      input.y !== undefined,
+    { message: "Provide a fixture label, room, or position to update." },
+  );
+
+export const removeFixtureInputSchema = z
+  .object({
+    fixtureId: z.string().min(1).optional(),
+    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+  })
+  .refine((input) => input.fixtureId || input.fixtureLabel, {
+    message: "Provide fixtureId or fixtureLabel.",
+  });
+
+export const bindFixtureInputSchema = z
+  .object({
+    fixtureId: z.string().min(1).optional(),
+    fixtureLabel: z.string().trim().min(1).max(80).optional(),
+    endpointId: z.string().min(1).optional(),
+    endpointLabel: z.string().trim().min(1).max(120).optional(),
+  })
+  .refine((input) => input.fixtureId || input.fixtureLabel, {
+    message: "Provide fixtureId or fixtureLabel.",
+  })
+  .refine((input) => input.endpointId || input.endpointLabel, {
+    message: "Provide endpointId or endpointLabel.",
+  });
+
+export const unbindFixtureInputSchema = removeFixtureInputSchema;
+
+export const addOpeningInputSchema = z
+  .object({
+    roomId: z.string().min(1).optional(),
+    roomLabel: z.string().trim().min(1).max(80).optional(),
+    connectsToRoomId: z.string().min(1).optional(),
+    connectsToRoomLabel: z.string().trim().min(1).max(80).optional(),
+    label: z.string().trim().min(1).max(80).optional(),
+    type: openingTypeSchema,
+    wall: wallSideSchema,
+    offset: z.number().min(0.1).max(0.9).default(0.5),
+  })
+  .refine((input) => input.roomId || input.roomLabel, {
+    message: "Provide roomId or roomLabel.",
+  });
+
+export const removeOpeningInputSchema = z
+  .object({
+    openingId: z.string().min(1).optional(),
+    label: z.string().trim().min(1).max(80).optional(),
+  })
+  .refine((input) => input.openingId || input.label, {
+    message: "Provide openingId or label.",
   });
 
 export const setFixtureStateInputSchema = z
@@ -143,19 +242,48 @@ export const setFixtureStateInputSchema = z
     message: "Provide on or brightness.",
   });
 
+export const homeChangeSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("add_room"), input: addRoomInputSchema }),
+  z.object({ op: z.literal("update_room"), input: updateRoomInputSchema }),
+  z.object({ op: z.literal("remove_room"), input: removeRoomInputSchema }),
+  z.object({ op: z.literal("add_fixture"), input: addFixtureInputSchema }),
+  z.object({ op: z.literal("update_fixture"), input: updateFixtureInputSchema }),
+  z.object({ op: z.literal("remove_fixture"), input: removeFixtureInputSchema }),
+  z.object({ op: z.literal("bind_device"), input: bindFixtureInputSchema }),
+  z.object({ op: z.literal("unbind_device"), input: unbindFixtureInputSchema }),
+  z.object({ op: z.literal("add_opening"), input: addOpeningInputSchema }),
+  z.object({ op: z.literal("remove_opening"), input: removeOpeningInputSchema }),
+]);
+
+export const applyHomeChangesInputSchema = z.object({
+  changes: z.array(homeChangeSchema).min(1).max(50),
+});
+
 export type CapabilityKind = z.infer<typeof capabilityKindSchema>;
 export type Room = z.infer<typeof roomSchema>;
 export type Fixture = z.infer<typeof fixtureSchema>;
 export type DeviceState = z.infer<typeof deviceStateSchema>;
 export type DeviceEndpoint = z.infer<typeof deviceEndpointSchema>;
 export type Binding = z.infer<typeof bindingSchema>;
+export type WallSide = z.infer<typeof wallSideSchema>;
+export type OpeningType = z.infer<typeof openingTypeSchema>;
+export type Opening = z.infer<typeof openingSchema>;
 export type Gateway = z.infer<typeof gatewaySchema>;
 export type HomeDocument = z.infer<typeof homeDocumentSchema>;
 export type AddRoomInput = z.input<typeof addRoomInputSchema>;
 export type AddFixtureInput = z.input<typeof addFixtureInputSchema>;
 export type UpdateRoomInput = z.infer<typeof updateRoomInputSchema>;
+export type RemoveRoomInput = z.infer<typeof removeRoomInputSchema>;
 export type MoveFixtureInput = z.infer<typeof moveFixtureInputSchema>;
+export type UpdateFixtureInput = z.infer<typeof updateFixtureInputSchema>;
+export type RemoveFixtureInput = z.infer<typeof removeFixtureInputSchema>;
+export type BindFixtureInput = z.infer<typeof bindFixtureInputSchema>;
+export type UnbindFixtureInput = z.infer<typeof unbindFixtureInputSchema>;
+export type AddOpeningInput = z.input<typeof addOpeningInputSchema>;
+export type RemoveOpeningInput = z.infer<typeof removeOpeningInputSchema>;
 export type SetFixtureStateInput = z.infer<typeof setFixtureStateInputSchema>;
+export type HomeChange = z.input<typeof homeChangeSchema>;
+export type ApplyHomeChangesInput = z.input<typeof applyHomeChangesInputSchema>;
 
 const fixtureCapabilities: Record<z.infer<typeof fixtureTypeSchema>, CapabilityKind[]> = {
   light: ["power", "brightness"],
@@ -199,6 +327,7 @@ export function createDemoHome(name = "Casa Portego"): HomeDocument {
       },
     ],
     bindings: [],
+    openings: [],
     gateway: {
       id: "gateway_sim_1",
       label: "Portego simulator",
@@ -212,6 +341,9 @@ export function createDemoHome(name = "Casa Portego"): HomeDocument {
 
 export function addRoom(home: HomeDocument, rawInput: AddRoomInput): HomeDocument {
   const input = addRoomInputSchema.parse(rawInput);
+  if (home.rooms.some((room) => room.label.toLowerCase() === input.label.toLowerCase())) {
+    throw new Error("A room with that name already exists.");
+  }
   const index = home.rooms.length;
   const room: Room = {
     id: id("room"),
@@ -246,10 +378,20 @@ const clamp = (value: number, minimum: number, maximum: number): number =>
 export function updateRoomGeometry(home: HomeDocument, rawInput: UpdateRoomInput): HomeDocument {
   const input = updateRoomInputSchema.parse(rawInput);
   const room = resolveRoom(home, input);
+  if (
+    input.label &&
+    home.rooms.some(
+      (candidate) =>
+        candidate.id !== room.id && candidate.label.toLowerCase() === input.label?.toLowerCase(),
+    )
+  ) {
+    throw new Error("A room with that name already exists.");
+  }
   const width = input.width ?? room.width;
   const height = input.height ?? room.height;
   const nextRoom: Room = {
     ...room,
+    label: input.label ?? room.label,
     x: clamp(input.x ?? room.x, 0, 1000 - width),
     y: clamp(input.y ?? room.y, 0, 650 - height),
     width,
@@ -286,6 +428,23 @@ export function updateRoomGeometry(home: HomeDocument, rawInput: UpdateRoomInput
   });
 }
 
+export function removeRoom(home: HomeDocument, rawInput: RemoveRoomInput): HomeDocument {
+  const input = removeRoomInputSchema.parse(rawInput);
+  const room = resolveRoom(home, input);
+  const fixtureIds = new Set(
+    home.fixtures.filter((fixture) => fixture.roomId === room.id).map((fixture) => fixture.id),
+  );
+  return touch({
+    ...home,
+    rooms: home.rooms.filter((candidate) => candidate.id !== room.id),
+    fixtures: home.fixtures.filter((fixture) => fixture.roomId !== room.id),
+    bindings: home.bindings.filter((binding) => !fixtureIds.has(binding.fixtureId)),
+    openings: home.openings.filter(
+      (opening) => opening.roomId !== room.id && opening.connectsToRoomId !== room.id,
+    ),
+  });
+}
+
 export function addFixture(home: HomeDocument, rawInput: AddFixtureInput): HomeDocument {
   const input = addFixtureInputSchema.parse(rawInput);
   const room = input.roomId
@@ -296,6 +455,9 @@ export function addFixture(home: HomeDocument, rawInput: AddFixtureInput): HomeD
 
   if (!room) {
     throw new Error("The requested room does not exist.");
+  }
+  if (home.fixtures.some((fixture) => fixture.label.toLowerCase() === input.label.toLowerCase())) {
+    throw new Error("A fixture with that name already exists.");
   }
 
   const fixture: Fixture = {
@@ -353,6 +515,35 @@ export function bindFixture(
   return touch({ ...home, bindings });
 }
 
+export function bindFixtureToEndpoint(
+  home: HomeDocument,
+  rawInput: BindFixtureInput,
+): HomeDocument {
+  const input = bindFixtureInputSchema.parse(rawInput);
+  const fixture = resolveFixture(home, input);
+  const endpoint = input.endpointId
+    ? home.endpoints.find((candidate) => candidate.id === input.endpointId)
+    : home.endpoints.find(
+        (candidate) => candidate.label.toLowerCase() === input.endpointLabel?.toLowerCase(),
+      );
+  if (!endpoint) {
+    throw new Error("Device endpoint not found.");
+  }
+  if (!endpoint.capabilities.some((capability) => fixture.capabilities.includes(capability))) {
+    throw new Error("The fixture and device do not share a compatible capability.");
+  }
+  return bindFixture(home, fixture.id, endpoint.id);
+}
+
+export function unbindFixture(home: HomeDocument, rawInput: UnbindFixtureInput): HomeDocument {
+  const input = unbindFixtureInputSchema.parse(rawInput);
+  const fixture = resolveFixture(home, input);
+  return touch({
+    ...home,
+    bindings: home.bindings.filter((binding) => binding.fixtureId !== fixture.id),
+  });
+}
+
 export function upsertEndpoints(home: HomeDocument, endpoints: DeviceEndpoint[]): HomeDocument {
   const incoming = new Map(endpoints.map((endpoint) => [endpoint.id, endpoint]));
   const merged = home.endpoints
@@ -393,22 +584,133 @@ export function resolveFixture(
 
 export function moveFixture(home: HomeDocument, rawInput: MoveFixtureInput): HomeDocument {
   const input = moveFixtureInputSchema.parse(rawInput);
+  return updateFixture(home, input);
+}
+
+export function updateFixture(home: HomeDocument, rawInput: UpdateFixtureInput): HomeDocument {
+  const input = updateFixtureInputSchema.parse(rawInput);
   const fixture = resolveFixture(home, input);
-  const room = roomForFixture(home, fixture);
+  const room =
+    input.roomId || input.roomLabel
+      ? resolveRoom(home, { roomId: input.roomId, roomLabel: input.roomLabel })
+      : roomForFixture(home, fixture);
   if (!room) {
     throw new Error("Fixture room not found.");
   }
+  if (
+    input.label &&
+    home.fixtures.some(
+      (candidate) =>
+        candidate.id !== fixture.id && candidate.label.toLowerCase() === input.label?.toLowerCase(),
+    )
+  ) {
+    throw new Error("A fixture with that name already exists.");
+  }
   const inset = 28;
+  const movedRooms = fixture.roomId !== room.id;
   const position = {
-    x: clamp(input.x, room.x + inset, room.x + room.width - inset),
-    y: clamp(input.y, room.y + inset, room.y + room.height - inset),
+    x: clamp(
+      input.x ?? (movedRooms ? room.x + room.width / 2 : fixture.position.x),
+      room.x + inset,
+      room.x + room.width - inset,
+    ),
+    y: clamp(
+      input.y ?? (movedRooms ? room.y + room.height / 2 : fixture.position.y),
+      room.y + inset,
+      room.y + room.height - inset,
+    ),
   };
   return touch({
     ...home,
     fixtures: home.fixtures.map((candidate) =>
-      candidate.id === fixture.id ? { ...candidate, position } : candidate,
+      candidate.id === fixture.id
+        ? { ...candidate, label: input.label ?? candidate.label, roomId: room.id, position }
+        : candidate,
     ),
   });
+}
+
+export function removeFixture(home: HomeDocument, rawInput: RemoveFixtureInput): HomeDocument {
+  const input = removeFixtureInputSchema.parse(rawInput);
+  const fixture = resolveFixture(home, input);
+  return touch({
+    ...home,
+    fixtures: home.fixtures.filter((candidate) => candidate.id !== fixture.id),
+    bindings: home.bindings.filter((binding) => binding.fixtureId !== fixture.id),
+  });
+}
+
+export function addOpening(home: HomeDocument, rawInput: AddOpeningInput): HomeDocument {
+  const input = addOpeningInputSchema.parse(rawInput);
+  const room = resolveRoom(home, input);
+  const connectedRoom =
+    input.connectsToRoomId || input.connectsToRoomLabel
+      ? resolveRoom(home, {
+          roomId: input.connectsToRoomId,
+          roomLabel: input.connectsToRoomLabel,
+        })
+      : undefined;
+  if (connectedRoom?.id === room.id) {
+    throw new Error("An opening cannot connect a room to itself.");
+  }
+  const opening: Opening = {
+    id: id("opening"),
+    roomId: room.id,
+    ...(connectedRoom ? { connectsToRoomId: connectedRoom.id } : {}),
+    ...(input.label ? { label: input.label } : {}),
+    type: input.type,
+    wall: input.wall,
+    offset: input.offset,
+  };
+  return touch({ ...home, openings: [...home.openings, opening] });
+}
+
+export function removeOpening(home: HomeDocument, rawInput: RemoveOpeningInput): HomeDocument {
+  const input = removeOpeningInputSchema.parse(rawInput);
+  const opening = input.openingId
+    ? home.openings.find((candidate) => candidate.id === input.openingId)
+    : home.openings.find(
+        (candidate) => candidate.label?.toLowerCase() === input.label?.toLowerCase(),
+      );
+  if (!opening) {
+    throw new Error("Opening not found.");
+  }
+  return touch({
+    ...home,
+    openings: home.openings.filter((candidate) => candidate.id !== opening.id),
+  });
+}
+
+export function applyHomeChanges(
+  home: HomeDocument,
+  rawInput: ApplyHomeChangesInput,
+): HomeDocument {
+  const input = applyHomeChangesInputSchema.parse(rawInput);
+  return input.changes.reduce((current, change) => {
+    switch (change.op) {
+      case "add_room":
+        return addRoom(current, change.input);
+      case "update_room":
+        return updateRoomGeometry(current, change.input);
+      case "remove_room":
+        return removeRoom(current, change.input);
+      case "add_fixture":
+        return addFixture(current, change.input);
+      case "update_fixture":
+        return updateFixture(current, change.input);
+      case "remove_fixture":
+        return removeFixture(current, change.input);
+      case "bind_device":
+        return bindFixtureToEndpoint(current, change.input);
+      case "unbind_device":
+        return unbindFixture(current, change.input);
+      case "add_opening":
+        return addOpening(current, change.input);
+      case "remove_opening":
+        return removeOpening(current, change.input);
+    }
+    return current;
+  }, home);
 }
 
 export function endpointForFixture(

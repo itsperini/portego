@@ -21,6 +21,7 @@ Every completed gesture becomes a semantic domain command:
 
     room drag/resize -> updateRoomGeometry -> HomeDocument revision
     fixture drag    -> moveFixture       -> HomeDocument revision
+    wall opening    -> addOpening        -> HomeDocument revision
 
 The same commands are exposed through HTTP and page-level WebMCP tools. The
 server response remains authoritative. The browser-local fallback applies the
@@ -34,7 +35,8 @@ movement is clamped to the containing room.
 
 - Konva scene serialization is not a Portego storage format.
 - Replacing the renderer does not require migrating home data.
-- Undo, collaboration, and audit history can operate on semantic commands.
+- Undo and redo operate on semantic document changes rather than Konva state.
 - Canvas-only objects require equivalent HTML controls for accessibility.
-- Wall networks, doors, windows, and polygonal rooms remain future domain
-  concepts rather than ad-hoc drawing primitives.
+- Doors and windows are semantic openings attached to room walls. Doors may
+  relate two rooms. Polygonal rooms and a normalized shared-wall network remain
+  future concepts rather than ad-hoc drawing primitives.

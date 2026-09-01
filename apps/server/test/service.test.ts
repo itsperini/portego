@@ -38,4 +38,33 @@ describe("PortegoService", () => {
     expect(moved.rooms[0]).toMatchObject({ x: 240, y: 160, width: 420, height: 300 });
     expect(moved.fixtures[0]?.position).toEqual({ x: 360, y: 260 });
   });
+
+  it("treats batch edits as one undoable service transaction", () => {
+    const service = new PortegoService();
+    service.applyChanges({
+      changes: [
+        { op: "add_room", input: { label: "Kitchen" } },
+        { op: "add_room", input: { label: "Hall" } },
+        {
+          op: "add_opening",
+          input: {
+            roomLabel: "Kitchen",
+            connectsToRoomLabel: "Hall",
+            label: "Kitchen door",
+            type: "door",
+            wall: "right",
+          },
+        },
+      ],
+    });
+    expect(service.snapshot().rooms).toHaveLength(2);
+    expect(service.snapshot().openings).toHaveLength(1);
+    expect(service.historyStatus()).toEqual({ canUndo: true, canRedo: false });
+
+    service.undo();
+    expect(service.snapshot().rooms).toHaveLength(0);
+    expect(service.historyStatus()).toEqual({ canUndo: false, canRedo: true });
+    service.redo();
+    expect(service.snapshot().rooms).toHaveLength(2);
+  });
 });

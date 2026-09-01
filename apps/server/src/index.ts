@@ -3,9 +3,16 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import {
   addFixtureInputSchema,
+  addOpeningInputSchema,
   addRoomInputSchema,
-  moveFixtureInputSchema,
+  applyHomeChangesInputSchema,
+  bindFixtureInputSchema,
+  removeFixtureInputSchema,
+  removeOpeningInputSchema,
+  removeRoomInputSchema,
   setFixtureStateInputSchema,
+  unbindFixtureInputSchema,
+  updateFixtureInputSchema,
   updateRoomInputSchema,
 } from "@portego/home-model";
 import { WebSocketServer } from "ws";
@@ -22,7 +29,7 @@ const mcpHandler = toNodeHandler(createMcpHandler(() => createPortegoMcpServer(s
 function applyCors(response: ServerResponse): void {
   response.setHeader("Access-Control-Allow-Origin", webOrigin);
   response.setHeader("Access-Control-Allow-Headers", "content-type, mcp-protocol-version");
-  response.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
   response.setHeader("Vary", "Origin");
 }
 
@@ -73,6 +80,11 @@ const httpServer = createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && url.pathname === "/api/history") {
+      sendJson(response, 200, service.historyStatus());
+      return;
+    }
+
     if (request.method === "POST" && url.pathname === "/api/rooms") {
       sendJson(
         response,
@@ -106,6 +118,16 @@ const httpServer = createServer(async (request, response) => {
       );
       return;
     }
+    if (request.method === "DELETE" && roomMatch?.[1]) {
+      sendJson(
+        response,
+        200,
+        service.removeRoom(
+          removeRoomInputSchema.parse({ roomId: decodeURIComponent(roomMatch[1]) }),
+        ),
+      );
+      return;
+    }
 
     const fixtureMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)$/);
     if (request.method === "PATCH" && fixtureMatch?.[1]) {
@@ -113,13 +135,84 @@ const httpServer = createServer(async (request, response) => {
       sendJson(
         response,
         200,
-        service.moveFixture(
-          moveFixtureInputSchema.parse({
+        service.updateFixture(
+          updateFixtureInputSchema.parse({
             ...(typeof body === "object" && body !== null ? body : {}),
             fixtureId: decodeURIComponent(fixtureMatch[1]),
           }),
         ),
       );
+      return;
+    }
+    if (request.method === "DELETE" && fixtureMatch?.[1]) {
+      sendJson(
+        response,
+        200,
+        service.removeFixture(
+          removeFixtureInputSchema.parse({ fixtureId: decodeURIComponent(fixtureMatch[1]) }),
+        ),
+      );
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/bindings") {
+      sendJson(
+        response,
+        200,
+        service.bindFixture(bindFixtureInputSchema.parse(await readJson(request))),
+      );
+      return;
+    }
+
+    const bindingMatch = url.pathname.match(/^\/api\/bindings\/([^/]+)$/);
+    if (request.method === "DELETE" && bindingMatch?.[1]) {
+      sendJson(
+        response,
+        200,
+        service.unbindFixture(
+          unbindFixtureInputSchema.parse({ fixtureId: decodeURIComponent(bindingMatch[1]) }),
+        ),
+      );
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/openings") {
+      sendJson(
+        response,
+        201,
+        service.createOpening(addOpeningInputSchema.parse(await readJson(request))),
+      );
+      return;
+    }
+
+    const openingMatch = url.pathname.match(/^\/api\/openings\/([^/]+)$/);
+    if (request.method === "DELETE" && openingMatch?.[1]) {
+      sendJson(
+        response,
+        200,
+        service.removeOpening(
+          removeOpeningInputSchema.parse({ openingId: decodeURIComponent(openingMatch[1]) }),
+        ),
+      );
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/changes") {
+      sendJson(
+        response,
+        200,
+        service.applyChanges(applyHomeChangesInputSchema.parse(await readJson(request))),
+      );
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/history/undo") {
+      sendJson(response, 200, service.undo());
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/history/redo") {
+      sendJson(response, 200, service.redo());
       return;
     }
 

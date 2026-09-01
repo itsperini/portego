@@ -1,8 +1,15 @@
 "use client";
 
-import type { Fixture, HomeDocument, MoveFixtureInput, UpdateRoomInput } from "@portego/home-model";
-import { Bot, Lightbulb, Magnet, Plus } from "lucide-react";
+import type {
+  Fixture,
+  HomeDocument,
+  MoveFixtureInput,
+  Room,
+  UpdateRoomInput,
+} from "@portego/home-model";
+import { Bot, Lightbulb, Magnet, Plus, Redo2, Undo2 } from "lucide-react";
 import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
 
 const KonvaHomeCanvas = dynamic(
   () => import("./konva-home-canvas").then((module) => module.KonvaHomeCanvas),
@@ -15,21 +22,37 @@ const KonvaHomeCanvas = dynamic(
 type HomeCanvasProps = {
   home: HomeDocument;
   selectedFixtureId?: string;
+  selectedRoomId?: string;
   onSelectFixture: (fixture?: Fixture) => void;
+  onSelectRoom: (room?: Room) => void;
   onUpdateRoom: (input: UpdateRoomInput) => void;
   onMoveFixture: (input: MoveFixtureInput) => void;
   onToggleFixture: (fixture: Fixture) => void;
   onBuildDemo: () => void;
+  floatingCard?: ReactNode;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  busy: boolean;
 };
 
 export function HomeCanvas({
   home,
   selectedFixtureId,
+  selectedRoomId,
   onSelectFixture,
+  onSelectRoom,
   onUpdateRoom,
   onMoveFixture,
   onToggleFixture,
   onBuildDemo,
+  floatingCard,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  busy,
 }: HomeCanvasProps) {
   return (
     <section className="canvas-shell" aria-label="Portego home canvas">
@@ -41,9 +64,19 @@ export function HomeCanvas({
             <span>Spatial model · revision {home.revision}</span>
           </div>
         </div>
-        <div className="canvas-tools-hint">
-          <Magnet aria-hidden="true" size={14} />
-          <span>Drag · snap 20 · resize rooms</span>
+        <div className="canvas-toolbar-actions">
+          <div className="history-controls" role="group" aria-label="Edit history">
+            <button type="button" onClick={onUndo} disabled={!canUndo || busy} aria-label="Undo">
+              <Undo2 size={14} />
+            </button>
+            <button type="button" onClick={onRedo} disabled={!canRedo || busy} aria-label="Redo">
+              <Redo2 size={14} />
+            </button>
+          </div>
+          <div className="canvas-tools-hint">
+            <Magnet aria-hidden="true" size={14} />
+            <span>Drag · snap 20 · resize rooms</span>
+          </div>
         </div>
       </div>
 
@@ -51,11 +84,15 @@ export function HomeCanvas({
         <KonvaHomeCanvas
           home={home}
           selectedFixtureId={selectedFixtureId}
+          selectedRoomId={selectedRoomId}
           onSelectFixture={onSelectFixture}
+          onSelectRoom={onSelectRoom}
           onUpdateRoom={onUpdateRoom}
           onMoveFixture={onMoveFixture}
           onToggleFixture={onToggleFixture}
         />
+
+        {floatingCard}
 
         {home.rooms.length === 0 ? (
           <div className="canvas-empty">

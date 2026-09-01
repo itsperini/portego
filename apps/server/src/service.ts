@@ -1,20 +1,36 @@
 import {
   type AddFixtureInput,
+  type AddOpeningInput,
   type AddRoomInput,
+  type ApplyHomeChangesInput,
   addFixture,
+  addOpening,
   addRoom,
+  applyHomeChanges,
   applyReportedState,
+  type BindFixtureInput,
+  bindFixtureToEndpoint,
   createDemoHome,
   type DeviceEndpoint,
   type DeviceState,
   type HomeDocument,
   type MoveFixtureInput,
   moveFixture,
+  type RemoveFixtureInput,
+  type RemoveOpeningInput,
+  type RemoveRoomInput,
+  removeFixture,
+  removeOpening,
+  removeRoom,
   resolveFixture,
   type SetFixtureStateInput,
   setDesiredFixtureState,
   setGatewayStatus,
+  type UnbindFixtureInput,
+  type UpdateFixtureInput,
   type UpdateRoomInput,
+  unbindFixture,
+  updateFixture,
   updateRoomGeometry,
   upsertEndpoints,
 } from "@portego/home-model";
@@ -24,6 +40,8 @@ export type CommandExecutor = (endpointId: string, state: DeviceState) => Promis
 export class PortegoService {
   #home: HomeDocument;
   #commandExecutor?: CommandExecutor;
+  #undoStack: HomeDocument[] = [];
+  #redoStack: HomeDocument[] = [];
 
   constructor(name = process.env.PORTEGO_HOME_NAME ?? "Casa Portego") {
     this.#home = createDemoHome(name);
@@ -35,6 +53,49 @@ export class PortegoService {
 
   reset(): HomeDocument {
     this.#home = createDemoHome(this.#home.name);
+    this.#undoStack = [];
+    this.#redoStack = [];
+    return this.snapshot();
+  }
+
+  historyStatus(): { canUndo: boolean; canRedo: boolean } {
+    return { canUndo: this.#undoStack.length > 0, canRedo: this.#redoStack.length > 0 };
+  }
+
+  #commit(change: (home: HomeDocument) => HomeDocument): HomeDocument {
+    const before = structuredClone(this.#home);
+    const next = change(this.#home);
+    this.#undoStack.push(before);
+    this.#redoStack = [];
+    this.#home = next;
+    return this.snapshot();
+  }
+
+  undo(): HomeDocument {
+    const previous = this.#undoStack.pop();
+    if (!previous) {
+      throw new Error("There is nothing to undo.");
+    }
+    this.#redoStack.push(structuredClone(this.#home));
+    this.#home = {
+      ...previous,
+      revision: this.#home.revision + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    return this.snapshot();
+  }
+
+  redo(): HomeDocument {
+    const next = this.#redoStack.pop();
+    if (!next) {
+      throw new Error("There is nothing to redo.");
+    }
+    this.#undoStack.push(structuredClone(this.#home));
+    this.#home = {
+      ...next,
+      revision: this.#home.revision + 1,
+      updatedAt: new Date().toISOString(),
+    };
     return this.snapshot();
   }
 
@@ -47,23 +108,51 @@ export class PortegoService {
   }
 
   createRoom(input: AddRoomInput): HomeDocument {
-    this.#home = addRoom(this.#home, input);
-    return this.snapshot();
+    return this.#commit((home) => addRoom(home, input));
   }
 
   createFixture(input: AddFixtureInput): HomeDocument {
-    this.#home = addFixture(this.#home, input);
-    return this.snapshot();
+    return this.#commit((home) => addFixture(home, input));
   }
 
   updateRoom(input: UpdateRoomInput): HomeDocument {
-    this.#home = updateRoomGeometry(this.#home, input);
-    return this.snapshot();
+    return this.#commit((home) => updateRoomGeometry(home, input));
   }
 
   moveFixture(input: MoveFixtureInput): HomeDocument {
-    this.#home = moveFixture(this.#home, input);
-    return this.snapshot();
+    return this.#commit((home) => moveFixture(home, input));
+  }
+
+  removeRoom(input: RemoveRoomInput): HomeDocument {
+    return this.#commit((home) => removeRoom(home, input));
+  }
+
+  updateFixture(input: UpdateFixtureInput): HomeDocument {
+    return this.#commit((home) => updateFixture(home, input));
+  }
+
+  removeFixture(input: RemoveFixtureInput): HomeDocument {
+    return this.#commit((home) => removeFixture(home, input));
+  }
+
+  bindFixture(input: BindFixtureInput): HomeDocument {
+    return this.#commit((home) => bindFixtureToEndpoint(home, input));
+  }
+
+  unbindFixture(input: UnbindFixtureInput): HomeDocument {
+    return this.#commit((home) => unbindFixture(home, input));
+  }
+
+  createOpening(input: AddOpeningInput): HomeDocument {
+    return this.#commit((home) => addOpening(home, input));
+  }
+
+  removeOpening(input: RemoveOpeningInput): HomeDocument {
+    return this.#commit((home) => removeOpening(home, input));
+  }
+
+  applyChanges(input: ApplyHomeChangesInput): HomeDocument {
+    return this.#commit((home) => applyHomeChanges(home, input));
   }
 
   updateGateway(status: "online" | "connecting" | "offline"): HomeDocument {
@@ -87,6 +176,7 @@ export class PortegoService {
     endpointId: string;
     state: DeviceState;
   }> {
+    const before = structuredClone(this.#home);
     const fixture = resolveFixture(this.#home, input);
     const desired = setDesiredFixtureState(this.#home, input);
     this.#home = desired.home;
@@ -94,6 +184,8 @@ export class PortegoService {
       ? await this.#commandExecutor(desired.endpoint.id, desired.requestedState)
       : desired.requestedState;
     this.#home = applyReportedState(this.#home, desired.endpoint.id, state);
+    this.#undoStack.push(before);
+    this.#redoStack = [];
 
     return {
       home: this.snapshot(),
