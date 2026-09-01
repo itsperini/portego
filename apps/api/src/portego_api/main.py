@@ -30,10 +30,10 @@ async def update_gateway_document(session: object, gateway: Gateway, online: boo
         "id": gateway.id,
         "label": gateway.name,
         "status": "online" if online else "offline",
-        "lastSeenAt": utcnow().isoformat(),
+        "lastSeenAt": utcnow().isoformat().replace("+00:00", "Z"),
         "version": gateway.agent_version,
     }
-    document["updatedAt"] = utcnow().isoformat()
+    document["updatedAt"] = utcnow().isoformat().replace("+00:00", "Z")
     home.document = document
 
 
