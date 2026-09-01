@@ -24,7 +24,8 @@
 
 html,
 body {
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -53,7 +54,8 @@ a:focus-visible,
 }
 
 .workspace {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   display: grid;
   grid-template-rows: 66px minmax(0, 1fr) 34px;
   background: var(--paper);
@@ -147,10 +149,8 @@ a:focus-visible,
 
 .left-rail {
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--paper);
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
 }
 
 .left-rail {
@@ -163,6 +163,14 @@ a:focus-visible,
 .rail-section {
   padding: 18px;
   border-bottom: 1px solid var(--line);
+}
+
+.structure-section {
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .section-heading {
@@ -196,13 +204,30 @@ a:focus-visible,
 }
 
 .structure-tree {
-  display: grid;
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 9px;
+  overflow: hidden;
 }
 
 .floor-index-list {
+  flex: 0 0 auto;
   display: grid;
   gap: 7px;
+}
+
+.floor-children {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 5px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 .floor-index-card {
@@ -1434,7 +1459,14 @@ a:focus-visible,
 }
 
 @media (max-width: 860px) {
+  html,
+  body {
+    height: auto;
+    overflow: auto;
+  }
+
   .workspace {
+    height: auto;
     min-height: 100dvh;
     grid-template-rows: auto auto auto;
   }

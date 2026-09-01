@@ -897,7 +897,7 @@ export function PortegoWorkspace() {
 
       <div className={`workspace-grid ${inspectorExpanded ? "inspector-open" : ""}`}>
         <aside className="left-rail">
-          <section className="rail-section">
+          <section className="rail-section structure-section">
             <div className="section-heading">
               <span>Home structure</span>
               <strong>{home.rooms.length + home.fixtures.length}</strong>
@@ -940,43 +940,47 @@ export function PortegoWorkspace() {
                 })}
               </div>
               {activeFloorExpanded ? (
-                visibleHome.rooms.length === 0 ? (
-                  <p className="tree-empty">
-                    No rooms yet. The canvas is waiting for a description.
-                  </p>
-                ) : (
-                  visibleHome.rooms.map((room) => {
-                    const fixtures = home.fixtures.filter((fixture) => fixture.roomId === room.id);
-                    return (
-                      <div className="tree-room" key={room.id}>
-                        <button
-                          className={`tree-room-label ${selectedRoomId === room.id ? "is-selected" : ""}`}
-                          type="button"
-                          onClick={() => selectRoom(room.id)}
-                        >
-                          <span className="room-swatch" />
-                          <span>{room.label}</span>
-                          <small>{fixtures.length}</small>
-                        </button>
-                        {fixtures.map((fixture) => {
-                          const endpoint = endpointForFixture(home, fixture.id);
-                          return (
-                            <button
-                              className={`tree-fixture ${selectedFixtureId === fixture.id ? "is-selected" : ""}`}
-                              type="button"
-                              key={fixture.id}
-                              onClick={() => selectFixture(fixture.id)}
-                            >
-                              <Lightbulb size={14} />
-                              <span>{fixture.label}</span>
-                              <i className={endpoint?.reportedState.on ? "is-on" : ""} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })
-                )
+                <div className="floor-children">
+                  {visibleHome.rooms.length === 0 ? (
+                    <p className="tree-empty">
+                      No rooms yet. The canvas is waiting for a description.
+                    </p>
+                  ) : (
+                    visibleHome.rooms.map((room) => {
+                      const fixtures = home.fixtures.filter(
+                        (fixture) => fixture.roomId === room.id,
+                      );
+                      return (
+                        <div className="tree-room" key={room.id}>
+                          <button
+                            className={`tree-room-label ${selectedRoomId === room.id ? "is-selected" : ""}`}
+                            type="button"
+                            onClick={() => selectRoom(room.id)}
+                          >
+                            <span className="room-swatch" />
+                            <span>{room.label}</span>
+                            <small>{fixtures.length}</small>
+                          </button>
+                          {fixtures.map((fixture) => {
+                            const endpoint = endpointForFixture(home, fixture.id);
+                            return (
+                              <button
+                                className={`tree-fixture ${selectedFixtureId === fixture.id ? "is-selected" : ""}`}
+                                type="button"
+                                key={fixture.id}
+                                onClick={() => selectFixture(fixture.id)}
+                              >
+                                <Lightbulb size={14} />
+                                <span>{fixture.label}</span>
+                                <i className={endpoint?.reportedState.on ? "is-on" : ""} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               ) : null}
             </nav>
           </section>
