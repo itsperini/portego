@@ -20,11 +20,13 @@ import {
 import {
   Activity,
   ChevronDown,
+  Cpu,
   DoorOpen,
   Lightbulb,
   PanelRightOpen,
   Plug,
   Plus,
+  SquareDashed,
   ToggleLeft,
   Trash2,
   Unlink,
@@ -1383,7 +1385,7 @@ export function PortegoWorkspace() {
               <span>Direct actions</span>
             </div>
             <button type="button" onClick={addNextRoom} disabled={busy}>
-              <Plus size={15} />
+              <SquareDashed size={15} />
               Add a room
             </button>
             <button
@@ -1392,7 +1394,7 @@ export function PortegoWorkspace() {
               disabled={busy || home.rooms.length === 0}
               title={home.rooms.length === 0 ? "Add a room before placing a device" : undefined}
             >
-              <Plus size={15} />
+              <Cpu size={15} />
               Add a device
             </button>
           </section>
