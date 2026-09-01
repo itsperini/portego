@@ -28,9 +28,13 @@ import {
   setGatewayStatus,
   type UnbindFixtureInput,
   type UpdateFixtureInput,
+  type UpdateFloorDetailsInput,
+  type UpdateHomeDetailsInput,
   type UpdateRoomInput,
   unbindFixture,
   updateFixture,
+  updateFloorDetails,
+  updateHomeDetails,
   updateRoomGeometry,
   upsertEndpoints,
 } from "@portego/home-model";
@@ -105,6 +109,14 @@ export class PortegoService {
 
   clearCommandExecutor(): void {
     this.#commandExecutor = undefined;
+  }
+
+  updateHomeDetails(input: UpdateHomeDetailsInput): HomeDocument {
+    return this.#commit((home) => updateHomeDetails(home, input));
+  }
+
+  updateFloorDetails(input: UpdateFloorDetailsInput): HomeDocument {
+    return this.#commit((home) => updateFloorDetails(home, input));
   }
 
   createRoom(input: AddRoomInput): HomeDocument {

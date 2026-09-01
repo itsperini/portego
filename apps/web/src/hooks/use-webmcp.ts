@@ -22,6 +22,8 @@ export function useWebMcp(
       document.modelContext,
       {
         getHome: () => actionsRef.current.getHome(),
+        updateHomeDetails: (input) => actionsRef.current.updateHomeDetails(input),
+        updateFloorDetails: (input) => actionsRef.current.updateFloorDetails(input),
         addRoom: (input) => actionsRef.current.addRoom(input),
         updateRoom: (input) => actionsRef.current.updateRoom(input),
         removeRoom: (input) => actionsRef.current.removeRoom(input),

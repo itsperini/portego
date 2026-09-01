@@ -499,6 +499,30 @@ a:focus-visible,
   backdrop-filter: blur(8px);
 }
 
+.canvas-breadcrumb button {
+  min-width: 0;
+  overflow: hidden;
+  padding: 3px 2px;
+  border: 0;
+  color: var(--slate);
+  background: transparent;
+  font-size: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.canvas-breadcrumb button:last-child {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.canvas-breadcrumb button:hover {
+  color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .canvas-breadcrumb span,
 .canvas-breadcrumb strong {
   overflow: hidden;
@@ -1069,10 +1093,11 @@ a:focus-visible,
 }
 
 .floating-card-form input,
+.config-field input,
 .config-field select,
+.config-field textarea,
 .opening-builder select {
   min-width: 0;
-  height: 34px;
   padding: 0 9px;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -1081,6 +1106,18 @@ a:focus-visible,
   font-family: var(--font-body);
   font-size: 10px;
   text-transform: none;
+}
+
+.config-field input,
+.config-field select,
+.opening-builder select {
+  height: 34px;
+}
+
+.config-field textarea {
+  min-height: 72px;
+  padding-block: 8px;
+  resize: vertical;
 }
 
 .floating-card-form button,
@@ -1105,6 +1142,25 @@ a:focus-visible,
 
 .config-field {
   margin: 8px 16px;
+}
+
+.details-card-form {
+  display: grid;
+  gap: 4px;
+  padding: 8px 0 18px;
+}
+
+.details-card-row {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+}
+
+.details-card-row .config-field + .config-field {
+  margin-left: 0;
+}
+
+.details-save {
+  margin: 8px 16px 0;
 }
 
 .fixture-control-row {

@@ -13,6 +13,8 @@ import {
   setDesiredFixtureState,
   unbindFixture,
   updateFixture,
+  updateFloorDetails,
+  updateHomeDetails,
   updateRoomGeometry,
 } from "@portego/home-model";
 import { describe, expect, it, vi } from "vitest";
@@ -30,6 +32,14 @@ describe("Portego WebMCP tools", () => {
 
     const registration = await registerPortegoTools(modelContext, {
       getHome: () => home,
+      updateHomeDetails: async (input) => {
+        home = updateHomeDetails(home, input);
+        return home;
+      },
+      updateFloorDetails: async (input) => {
+        home = updateFloorDetails(home, input);
+        return home;
+      },
       addRoom: async (input) => {
         home = addRoom(home, input);
         return home;
@@ -92,7 +102,19 @@ describe("Portego WebMCP tools", () => {
     });
 
     expect(registration.status).toBe("ready");
-    expect(tools.size).toBe(17);
+    expect(tools.size).toBe(19);
+    await tools
+      .get("home.update_details")
+      ?.execute(
+        { name: "Casa Perini", description: "A family home", areaM2: 90 },
+        { signal: new AbortController().signal },
+      );
+    await tools
+      .get("home.update_floor_details")
+      ?.execute(
+        { floorName: "Ground floor", description: "Main living level", areaM2: 90 },
+        { signal: new AbortController().signal },
+      );
     await tools
       .get("home.add_room")
       ?.execute({ label: "Kitchen" }, { signal: new AbortController().signal });
@@ -122,6 +144,8 @@ describe("Portego WebMCP tools", () => {
       );
 
     expect(home.rooms).toHaveLength(1);
+    expect(home).toMatchObject({ name: "Casa Perini", description: "A family home", areaM2: 90 });
+    expect(home.floors[0]).toMatchObject({ description: "Main living level", areaM2: 90 });
     expect(home.fixtures).toHaveLength(1);
     expect(home.rooms[0]).toMatchObject({ x: 200, y: 140, width: 460, height: 320 });
     expect(home.fixtures[0]?.position).toEqual({ x: 320, y: 240 });
@@ -153,6 +177,8 @@ describe("Portego WebMCP tools", () => {
       modelContext,
       {
         getHome: () => createDemoHome(),
+        updateHomeDetails: async () => createDemoHome(),
+        updateFloorDetails: async () => createDemoHome(),
         addRoom: async () => createDemoHome(),
         updateRoom: async () => createDemoHome(),
         removeRoom: async () => createDemoHome(),

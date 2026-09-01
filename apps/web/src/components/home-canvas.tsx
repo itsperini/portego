@@ -25,6 +25,8 @@ type HomeCanvasProps = {
   selectedRoomId?: string;
   onSelectFixture: (fixture?: Fixture) => void;
   onSelectRoom: (room?: Room) => void;
+  onSelectHome: () => void;
+  onSelectFloor: () => void;
   onUpdateRoom: (input: UpdateRoomInput) => void;
   onMoveFixture: (input: MoveFixtureInput) => void;
   onToggleFixture: (fixture: Fixture) => void;
@@ -43,6 +45,8 @@ export function HomeCanvas({
   selectedRoomId,
   onSelectFixture,
   onSelectRoom,
+  onSelectHome,
+  onSelectFloor,
   onUpdateRoom,
   onMoveFixture,
   onToggleFixture,
@@ -58,9 +62,13 @@ export function HomeCanvas({
       <div className="canvas-stage">
         <nav className="canvas-breadcrumb" aria-label={`Editing ${floorName} in ${home.name}`}>
           <House size={14} aria-hidden="true" />
-          <span>{home.name}</span>
+          <button type="button" onClick={onSelectHome}>
+            {home.name}
+          </button>
           <ChevronRight size={12} aria-hidden="true" />
-          <strong>{floorName}</strong>
+          <button type="button" onClick={onSelectFloor}>
+            {floorName}
+          </button>
         </nav>
 
         <div

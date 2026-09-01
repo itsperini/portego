@@ -26,9 +26,13 @@ import {
   setDesiredFixtureState,
   type UnbindFixtureInput,
   type UpdateFixtureInput,
+  type UpdateFloorDetailsInput,
+  type UpdateHomeDetailsInput,
   type UpdateRoomInput,
   unbindFixture as unbindFixtureLocally,
   updateFixture as updateFixtureLocally,
+  updateFloorDetails as updateFloorDetailsLocally,
+  updateHomeDetails as updateHomeDetailsLocally,
   updateRoomGeometry as updateRoomLocally,
 } from "@portego/home-model";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -114,6 +118,42 @@ export function usePortegoHome() {
     const poller = setInterval(() => void refresh(), 1_500);
     return () => clearInterval(poller);
   }, [connectionMode, refresh]);
+
+  const updateHomeDetails = useCallback(
+    async (input: UpdateHomeDetailsInput) => {
+      try {
+        const next = await request<HomeDocument>("/api/home/details", {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        });
+        setConnectionMode("cloud");
+        setError(null);
+        return acceptCloudMutation(next);
+      } catch (requestError) {
+        if (connectionMode === "cloud") throw requestError;
+        return acceptLocalMutation(updateHomeDetailsLocally(homeRef.current, input));
+      }
+    },
+    [acceptCloudMutation, acceptLocalMutation, connectionMode],
+  );
+
+  const updateFloorDetails = useCallback(
+    async (input: UpdateFloorDetailsInput) => {
+      try {
+        const next = await request<HomeDocument>("/api/floors/details", {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        });
+        setConnectionMode("cloud");
+        setError(null);
+        return acceptCloudMutation(next);
+      } catch (requestError) {
+        if (connectionMode === "cloud") throw requestError;
+        return acceptLocalMutation(updateFloorDetailsLocally(homeRef.current, input));
+      }
+    },
+    [acceptCloudMutation, acceptLocalMutation, connectionMode],
+  );
 
   const addRoom = useCallback(
     async (input: AddRoomInput) => {
@@ -524,6 +564,8 @@ export function usePortegoHome() {
     error,
     history,
     getHome: () => homeRef.current,
+    updateHomeDetails,
+    updateFloorDetails,
     addRoom,
     addFixture,
     updateRoom,

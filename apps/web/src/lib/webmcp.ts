@@ -12,11 +12,15 @@ import type {
   SetFixtureStateInput,
   UnbindFixtureInput,
   UpdateFixtureInput,
+  UpdateFloorDetailsInput,
+  UpdateHomeDetailsInput,
   UpdateRoomInput,
 } from "@portego/home-model";
 
 export type WebMcpActions = {
   getHome: () => HomeDocument;
+  updateHomeDetails: (input: UpdateHomeDetailsInput) => Promise<HomeDocument>;
+  updateFloorDetails: (input: UpdateFloorDetailsInput) => Promise<HomeDocument>;
   addRoom: (input: AddRoomInput) => Promise<HomeDocument>;
   updateRoom: (input: UpdateRoomInput) => Promise<HomeDocument>;
   removeRoom: (input: RemoveRoomInput) => Promise<HomeDocument>;
@@ -78,6 +82,63 @@ export async function registerPortegoTools(
               revision: home.revision,
             },
           };
+        },
+      },
+      options,
+    );
+
+    await modelContext.registerTool(
+      {
+        name: "home.update_details",
+        title: "Update home details",
+        description:
+          "Rename the Portego home or update its description, type, total area, and notes.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string", minLength: 1, maxLength: 100 },
+            description: { type: "string", maxLength: 500 },
+            homeType: { type: "string", maxLength: 80 },
+            areaM2: { type: ["number", "null"], minimum: 0 },
+            notes: { type: "string", maxLength: 1000 },
+          },
+          additionalProperties: false,
+        },
+        execute: async (input) => {
+          const home = await actions.updateHomeDetails(input as UpdateHomeDetailsInput);
+          onActivity?.(`Codex updated ${home.name}`);
+          return { changed: true, home, revision: home.revision };
+        },
+      },
+      options,
+    );
+
+    await modelContext.registerTool(
+      {
+        name: "home.update_floor_details",
+        title: "Update floor details",
+        description:
+          "Rename one floor or update its description, area, and notes. Renaming also moves its rooms to the new floor name.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            floorName: { type: "string", minLength: 1, maxLength: 80 },
+            name: { type: "string", minLength: 1, maxLength: 80 },
+            description: { type: "string", maxLength: 500 },
+            areaM2: { type: ["number", "null"], minimum: 0 },
+            notes: { type: "string", maxLength: 1000 },
+          },
+          required: ["floorName"],
+          additionalProperties: false,
+        },
+        execute: async (input) => {
+          const home = await actions.updateFloorDetails(input as UpdateFloorDetailsInput);
+          const floor = home.floors.find(
+            (candidate) =>
+              candidate.name.toLowerCase() === String(input.name ?? input.floorName).toLowerCase(),
+          );
+          onActivity?.(`Codex updated ${floor?.name ?? input.floorName}`);
+          return { changed: true, floor, revision: home.revision };
         },
       },
       options,

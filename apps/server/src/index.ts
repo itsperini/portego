@@ -13,6 +13,8 @@ import {
   setFixtureStateInputSchema,
   unbindFixtureInputSchema,
   updateFixtureInputSchema,
+  updateFloorDetailsInputSchema,
+  updateHomeDetailsInputSchema,
   updateRoomInputSchema,
 } from "@portego/home-model";
 import { WebSocketServer } from "ws";
@@ -82,6 +84,24 @@ const httpServer = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/history") {
       sendJson(response, 200, service.historyStatus());
+      return;
+    }
+
+    if (request.method === "PATCH" && url.pathname === "/api/home/details") {
+      sendJson(
+        response,
+        200,
+        service.updateHomeDetails(updateHomeDetailsInputSchema.parse(await readJson(request))),
+      );
+      return;
+    }
+
+    if (request.method === "PATCH" && url.pathname === "/api/floors/details") {
+      sendJson(
+        response,
+        200,
+        service.updateFloorDetails(updateFloorDetailsInputSchema.parse(await readJson(request))),
+      );
       return;
     }
 

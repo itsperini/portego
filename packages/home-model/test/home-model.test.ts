@@ -13,10 +13,33 @@ import {
   setDesiredFixtureState,
   unbindFixture,
   updateFixture,
+  updateFloorDetails,
+  updateHomeDetails,
   updateRoomGeometry,
 } from "../src/index.js";
 
 describe("home model", () => {
+  it("updates home metadata and renames a floor with all of its rooms", () => {
+    let home = createDemoHome();
+    home = addRoom(home, { label: "Studio", floor: "Attic" });
+    home = updateHomeDetails(home, {
+      name: "Casa Perini",
+      description: "A family home",
+      areaM2: 130,
+    });
+    home = updateFloorDetails(home, {
+      floorName: "Attic",
+      name: "Mansarda",
+      description: "A flexible upper level",
+    });
+
+    expect(home).toMatchObject({ name: "Casa Perini", areaM2: 130 });
+    expect(home.floors.find((floor) => floor.name === "Mansarda")).toMatchObject({
+      description: "A flexible upper level",
+    });
+    expect(home.rooms[0]?.floor).toBe("Mansarda");
+  });
+
   it("keeps a fixture independent from its automatically bound endpoint", () => {
     let home = createDemoHome();
     home = addRoom(home, { label: "Kitchen" });

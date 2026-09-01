@@ -3,9 +3,12 @@
 import {
   endpointForFixture,
   type Fixture,
+  type Floor,
   type HomeDocument,
   type OpeningType,
   type Room,
+  type UpdateFloorDetailsInput,
+  type UpdateHomeDetailsInput,
   type WallSide,
 } from "@portego/home-model";
 import { DoorOpen, Lightbulb, PanelRightOpen, Plus, Trash2, Unlink, X } from "lucide-react";
@@ -48,6 +51,192 @@ function FloorMiniMap({ home, floor }: FloorMiniMapProps) {
         ></i>
       ))}
     </span>
+  );
+}
+
+function HomeDetailsCard({
+  home,
+  busy,
+  onClose,
+  onSave,
+}: {
+  home: HomeDocument;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (input: UpdateHomeDetailsInput) => void;
+}) {
+  const [name, setName] = useState(home.name);
+  const [description, setDescription] = useState(home.description);
+  const [homeType, setHomeType] = useState(home.homeType);
+  const [area, setArea] = useState(home.areaM2?.toString() ?? "");
+  const [notes, setNotes] = useState(home.notes);
+
+  useEffect(() => {
+    setName(home.name);
+    setDescription(home.description);
+    setHomeType(home.homeType);
+    setArea(home.areaM2?.toString() ?? "");
+    setNotes(home.notes);
+  }, [home]);
+
+  return (
+    <aside className="floating-object-card details-card" aria-label={`${home.name} details`}>
+      <header className="floating-card-header">
+        <div>
+          <span className="eyebrow">Home</span>
+          <strong>{home.name}</strong>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close home details">
+          <X size={15} />
+        </button>
+      </header>
+      <form
+        className="details-card-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave({
+            name: name.trim(),
+            description: description.trim(),
+            homeType: homeType.trim(),
+            areaM2: area ? Number(area) : null,
+            notes: notes.trim(),
+          });
+        }}
+      >
+        <label className="config-field">
+          <span>Name</span>
+          <input value={name} onChange={(event) => setName(event.target.value)} required />
+        </label>
+        <label className="config-field">
+          <span>Description</span>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            rows={4}
+            placeholder="A short description of this home"
+          />
+        </label>
+        <div className="details-card-row">
+          <label className="config-field">
+            <span>Home type</span>
+            <input
+              value={homeType}
+              onChange={(event) => setHomeType(event.target.value)}
+              placeholder="Apartment"
+            />
+          </label>
+          <label className="config-field">
+            <span>Area · m²</span>
+            <input
+              value={area}
+              onChange={(event) => setArea(event.target.value)}
+              type="number"
+              min="0.1"
+              step="0.1"
+            />
+          </label>
+        </div>
+        <label className="config-field">
+          <span>Notes</span>
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            rows={4}
+            placeholder="Private setup notes"
+          />
+        </label>
+        <button className="primary-action details-save" type="submit" disabled={busy}>
+          Save home details
+        </button>
+      </form>
+    </aside>
+  );
+}
+
+function FloorDetailsCard({
+  floor,
+  busy,
+  onClose,
+  onSave,
+}: {
+  floor: Floor;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (input: UpdateFloorDetailsInput) => void;
+}) {
+  const [name, setName] = useState(floor.name);
+  const [description, setDescription] = useState(floor.description);
+  const [area, setArea] = useState(floor.areaM2?.toString() ?? "");
+  const [notes, setNotes] = useState(floor.notes);
+
+  useEffect(() => {
+    setName(floor.name);
+    setDescription(floor.description);
+    setArea(floor.areaM2?.toString() ?? "");
+    setNotes(floor.notes);
+  }, [floor]);
+
+  return (
+    <aside className="floating-object-card details-card" aria-label={`${floor.name} details`}>
+      <header className="floating-card-header">
+        <div>
+          <span className="eyebrow">Floor</span>
+          <strong>{floor.name}</strong>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close floor details">
+          <X size={15} />
+        </button>
+      </header>
+      <form
+        className="details-card-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave({
+            floorName: floor.name,
+            name: name.trim(),
+            description: description.trim(),
+            areaM2: area ? Number(area) : null,
+            notes: notes.trim(),
+          });
+        }}
+      >
+        <label className="config-field">
+          <span>Name</span>
+          <input value={name} onChange={(event) => setName(event.target.value)} required />
+        </label>
+        <label className="config-field">
+          <span>Description</span>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            rows={4}
+            placeholder="How this floor is used"
+          />
+        </label>
+        <label className="config-field">
+          <span>Area · m²</span>
+          <input
+            value={area}
+            onChange={(event) => setArea(event.target.value)}
+            type="number"
+            min="0.1"
+            step="0.1"
+          />
+        </label>
+        <label className="config-field">
+          <span>Notes</span>
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            rows={4}
+            placeholder="Floor-specific notes"
+          />
+        </label>
+        <button className="primary-action details-save" type="submit" disabled={busy}>
+          Save floor details
+        </button>
+      </form>
+    </aside>
   );
 }
 
@@ -363,6 +552,8 @@ export function PortegoWorkspace() {
     error,
     history,
     getHome,
+    updateHomeDetails,
+    updateFloorDetails,
     addRoom,
     addFixture,
     updateRoom,
@@ -382,6 +573,7 @@ export function PortegoWorkspace() {
   } = usePortegoHome();
   const [selectedFixtureId, setSelectedFixtureId] = useState<string>();
   const [selectedRoomId, setSelectedRoomId] = useState<string>();
+  const [selectedDetails, setSelectedDetails] = useState<"home" | "floor">();
   const [inspectorExpanded, setInspectorExpanded] = useState(false);
   const [activeFloor, setActiveFloor] = useState("Ground floor");
   const [activity, setActivity] = useState("The home is ready for a conversational edit.");
@@ -390,6 +582,12 @@ export function PortegoWorkspace() {
   const webMcpActions = useMemo(
     () => ({
       getHome,
+      updateHomeDetails,
+      updateFloorDetails: async (input: UpdateFloorDetailsInput) => {
+        const next = await updateFloorDetails(input);
+        if (input.name && input.floorName === activeFloor) setActiveFloor(input.name);
+        return next;
+      },
       addRoom,
       updateRoom,
       removeRoom,
@@ -409,6 +607,9 @@ export function PortegoWorkspace() {
     }),
     [
       getHome,
+      activeFloor,
+      updateHomeDetails,
+      updateFloorDetails,
       addRoom,
       updateRoom,
       removeRoom,
@@ -431,9 +632,16 @@ export function PortegoWorkspace() {
   useWebMcp(webMcpActions, onAgentActivity);
   const selectedFixture = home.fixtures.find((fixture) => fixture.id === selectedFixtureId);
   const selectedRoom = home.rooms.find((room) => room.id === selectedRoomId);
+  const selectedFloor = home.floors.find((floor) => floor.name === activeFloor);
   const floors = useMemo(
-    () => Array.from(new Set(["Ground floor", ...home.rooms.map((room) => room.floor)])),
-    [home.rooms],
+    () =>
+      Array.from(
+        new Set([
+          ...home.floors.map((floor) => floor.name),
+          ...home.rooms.map((room) => room.floor),
+        ]),
+      ),
+    [home.floors, home.rooms],
   );
   const visibleRoomIds = useMemo(
     () => new Set(home.rooms.filter((room) => room.floor === activeFloor).map((room) => room.id)),
@@ -450,15 +658,24 @@ export function PortegoWorkspace() {
   );
 
   const selectFixture = useCallback((fixtureId?: string) => {
+    setSelectedDetails(undefined);
     setSelectedRoomId(undefined);
     setSelectedFixtureId(fixtureId);
     setInspectorExpanded(false);
   }, []);
 
   const selectRoom = useCallback((roomId?: string) => {
+    setSelectedDetails(undefined);
     setSelectedFixtureId(undefined);
     setSelectedRoomId(roomId);
     setInspectorExpanded(false);
+  }, []);
+
+  const selectDetails = useCallback((details: "home" | "floor") => {
+    setSelectedFixtureId(undefined);
+    setSelectedRoomId(undefined);
+    setSelectedDetails(details);
+    setInspectorExpanded(true);
   }, []);
 
   const activateFloor = useCallback(
@@ -606,6 +823,35 @@ export function PortegoWorkspace() {
         })
       }
     />
+  ) : selectedDetails === "home" ? (
+    <HomeDetailsCard
+      home={home}
+      busy={busy}
+      onClose={() => setInspectorExpanded(false)}
+      onSave={(input) =>
+        void run(async () => {
+          const next = await updateHomeDetails(input);
+          setActivity(`${next.name} details were updated.`);
+        })
+      }
+    />
+  ) : selectedDetails === "floor" && selectedFloor ? (
+    <FloorDetailsCard
+      floor={selectedFloor}
+      busy={busy}
+      onClose={() => setInspectorExpanded(false)}
+      onSave={(input) =>
+        void run(async () => {
+          const next = await updateFloorDetails(input);
+          const nextFloorName = input.name ?? input.floorName;
+          setActiveFloor(nextFloorName);
+          setActivity(`${nextFloorName} details were updated.`);
+          if (!next.floors.some((floor) => floor.name === nextFloorName)) {
+            setSelectedDetails(undefined);
+          }
+        })
+      }
+    />
   ) : undefined;
 
   return (
@@ -717,6 +963,8 @@ export function PortegoWorkspace() {
           selectedRoomId={selectedRoomId}
           onSelectFixture={(fixture) => selectFixture(fixture?.id)}
           onSelectRoom={(room) => selectRoom(room?.id)}
+          onSelectHome={() => selectDetails("home")}
+          onSelectFloor={() => selectDetails("floor")}
           onUpdateRoom={(input) =>
             void run(async () => {
               const next = await updateRoom(input);
@@ -770,17 +1018,35 @@ export function PortegoWorkspace() {
             <button
               className="property-rail-trigger"
               type="button"
-              disabled={!selectedFixture && !selectedRoom}
+              disabled={!selectedFixture && !selectedRoom && !selectedDetails}
               onClick={() => setInspectorExpanded(true)}
               aria-label={
-                selectedFixture || selectedRoom
-                  ? `Open properties for ${selectedFixture?.label ?? selectedRoom?.label}`
-                  : "Select a room or fixture to view properties"
+                selectedFixture || selectedRoom || selectedDetails
+                  ? `Open properties for ${selectedFixture?.label ?? selectedRoom?.label ?? (selectedDetails === "home" ? home.name : activeFloor)}`
+                  : "Select a home, floor, room, or fixture to view properties"
               }
             >
               <PanelRightOpen size={16} />
-              <span>{selectedFixture?.label ?? selectedRoom?.label ?? "Select item"}</span>
-              <small>{selectedFixture ? "Fixture" : selectedRoom ? "Room" : "Properties"}</small>
+              <span>
+                {selectedFixture?.label ??
+                  selectedRoom?.label ??
+                  (selectedDetails === "home"
+                    ? home.name
+                    : selectedDetails === "floor"
+                      ? activeFloor
+                      : "Select item")}
+              </span>
+              <small>
+                {selectedFixture
+                  ? "Fixture"
+                  : selectedRoom
+                    ? "Room"
+                    : selectedDetails === "home"
+                      ? "Home"
+                      : selectedDetails === "floor"
+                        ? "Floor"
+                        : "Properties"}
+              </small>
             </button>
           )}
         </aside>

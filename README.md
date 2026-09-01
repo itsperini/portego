@@ -68,9 +68,11 @@ Open the canvas in the Codex built-in browser and ask:
 
 > Create a kitchen, then add a ceiling light and turn it on at 40 percent.
 
-The top-level page registers 17 imperative site tools:
+The top-level page registers 19 imperative site tools:
 
 - home.get_document
+- home.update_details
+- home.update_floor_details
 - home.add_room
 - home.update_room
 - home.remove_room
@@ -109,10 +111,10 @@ the canonical `HomeDocument`. It supports:
 - zoom controls and fit-to-home;
 - semantic room and fixture updates through the API and WebMCP.
 
-Selecting a fixture or room reveals a compact property tab at the right edge of
-the canvas. Opening it expands a docked inspector for names, room assignment,
-device binding, power, brightness, removal, and wall openings. Closing it gives
-the space back to the canvas while keeping the selection.
+The canvas breadcrumb opens home or floor details directly in the docked right
+inspector. Fixtures and rooms use the same contextual property rail for names,
+room assignment, device binding, power, brightness, removal, and wall openings.
+Closing it gives the space back to the canvas while keeping the selection.
 
 Portego stores room and fixture geometry, not serialized Konva nodes. Manual,
 API, and conversational edits therefore produce the same validated model.

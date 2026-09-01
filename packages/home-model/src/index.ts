@@ -25,6 +25,14 @@ export const roomSchema = z.object({
   height: z.number().min(100).max(620),
 });
 
+export const floorSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(500).default(""),
+  areaM2: z.number().positive().max(100000).optional(),
+  notes: z.string().trim().max(1000).default(""),
+});
+
 export const fixtureTypeSchema = z.enum(["light", "switch", "plug", "sensor"]);
 
 export const fixtureSchema = z.object({
@@ -85,7 +93,15 @@ export const gatewaySchema = z.object({
 export const homeDocumentSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(500).default(""),
+  homeType: z.string().trim().max(80).default(""),
+  areaM2: z.number().positive().max(100000).optional(),
+  notes: z.string().trim().max(1000).default(""),
   revision: z.number().int().nonnegative(),
+  floors: z
+    .array(floorSchema)
+    .min(1)
+    .default([{ id: "floor_ground", name: "Ground floor", description: "", notes: "" }]),
   rooms: z.array(roomSchema),
   fixtures: z.array(fixtureSchema),
   endpoints: z.array(deviceEndpointSchema),
@@ -103,6 +119,35 @@ export const addRoomInputSchema = z.object({
   width: z.number().min(120).max(900).optional(),
   height: z.number().min(100).max(620).optional(),
 });
+
+export const updateHomeDetailsInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    description: z.string().trim().max(500).optional(),
+    homeType: z.string().trim().max(80).optional(),
+    areaM2: z.number().positive().max(100000).nullable().optional(),
+    notes: z.string().trim().max(1000).optional(),
+  })
+  .refine((input) => Object.values(input).some((value) => value !== undefined), {
+    message: "Provide at least one home detail to update.",
+  });
+
+export const updateFloorDetailsInputSchema = z
+  .object({
+    floorName: z.string().trim().min(1).max(80),
+    name: z.string().trim().min(1).max(80).optional(),
+    description: z.string().trim().max(500).optional(),
+    areaM2: z.number().positive().max(100000).nullable().optional(),
+    notes: z.string().trim().max(1000).optional(),
+  })
+  .refine(
+    (input) =>
+      input.name !== undefined ||
+      input.description !== undefined ||
+      input.areaM2 !== undefined ||
+      input.notes !== undefined,
+    { message: "Provide at least one floor detail to update." },
+  );
 
 export const addFixtureInputSchema = z.object({
   roomId: z.string().min(1).optional(),
@@ -263,6 +308,7 @@ export const applyHomeChangesInputSchema = z.object({
 
 export type CapabilityKind = z.infer<typeof capabilityKindSchema>;
 export type Room = z.infer<typeof roomSchema>;
+export type Floor = z.infer<typeof floorSchema>;
 export type Fixture = z.infer<typeof fixtureSchema>;
 export type DeviceState = z.infer<typeof deviceStateSchema>;
 export type DeviceEndpoint = z.infer<typeof deviceEndpointSchema>;
@@ -273,6 +319,8 @@ export type Opening = z.infer<typeof openingSchema>;
 export type Gateway = z.infer<typeof gatewaySchema>;
 export type HomeDocument = z.infer<typeof homeDocumentSchema>;
 export type AddRoomInput = z.input<typeof addRoomInputSchema>;
+export type UpdateHomeDetailsInput = z.infer<typeof updateHomeDetailsInputSchema>;
+export type UpdateFloorDetailsInput = z.infer<typeof updateFloorDetailsInputSchema>;
 export type AddFixtureInput = z.input<typeof addFixtureInputSchema>;
 export type UpdateRoomInput = z.infer<typeof updateRoomInputSchema>;
 export type RemoveRoomInput = z.infer<typeof removeRoomInputSchema>;
@@ -312,6 +360,7 @@ export function createDemoHome(name = "Casa Portego"): HomeDocument {
   return homeDocumentSchema.parse({
     id: "home_demo",
     name,
+    floors: [{ id: "floor_ground", name: "Ground floor", description: "", notes: "" }],
     revision: 0,
     rooms: [],
     fixtures: [],
@@ -341,6 +390,60 @@ export function createDemoHome(name = "Casa Portego"): HomeDocument {
   });
 }
 
+export function updateHomeDetails(
+  home: HomeDocument,
+  rawInput: UpdateHomeDetailsInput,
+): HomeDocument {
+  const input = updateHomeDetailsInputSchema.parse(rawInput);
+  return touch({
+    ...home,
+    name: input.name ?? home.name,
+    description: input.description ?? home.description,
+    homeType: input.homeType ?? home.homeType,
+    areaM2: input.areaM2 === null ? undefined : (input.areaM2 ?? home.areaM2),
+    notes: input.notes ?? home.notes,
+  });
+}
+
+export function updateFloorDetails(
+  home: HomeDocument,
+  rawInput: UpdateFloorDetailsInput,
+): HomeDocument {
+  const input = updateFloorDetailsInputSchema.parse(rawInput);
+  const floors = home.floors ?? [];
+  const floor = floors.find(
+    (candidate) => candidate.name.toLowerCase() === input.floorName.toLowerCase(),
+  );
+  if (!floor) throw new Error("Floor not found.");
+  if (
+    input.name &&
+    floors.some(
+      (candidate) =>
+        candidate.id !== floor.id && candidate.name.toLowerCase() === input.name?.toLowerCase(),
+    )
+  ) {
+    throw new Error("A floor with that name already exists.");
+  }
+  const nextName = input.name ?? floor.name;
+  return touch({
+    ...home,
+    floors: floors.map((candidate) =>
+      candidate.id === floor.id
+        ? {
+            ...candidate,
+            name: nextName,
+            description: input.description ?? candidate.description,
+            areaM2: input.areaM2 === null ? undefined : (input.areaM2 ?? candidate.areaM2),
+            notes: input.notes ?? candidate.notes,
+          }
+        : candidate,
+    ),
+    rooms: home.rooms.map((room) =>
+      room.floor.toLowerCase() === floor.name.toLowerCase() ? { ...room, floor: nextName } : room,
+    ),
+  });
+}
+
 export function addRoom(home: HomeDocument, rawInput: AddRoomInput): HomeDocument {
   const input = addRoomInputSchema.parse(rawInput);
   if (home.rooms.some((room) => room.label.toLowerCase() === input.label.toLowerCase())) {
@@ -357,7 +460,12 @@ export function addRoom(home: HomeDocument, rawInput: AddRoomInput): HomeDocumen
     height: input.height ?? 216,
   };
 
-  return touch({ ...home, rooms: [...home.rooms, room] });
+  const floors = home.floors ?? [];
+  const nextFloors = floors.some((floor) => floor.name.toLowerCase() === input.floor.toLowerCase())
+    ? floors
+    : [...floors, { id: id("floor"), name: input.floor, description: "", notes: "" }];
+
+  return touch({ ...home, floors: nextFloors, rooms: [...home.rooms, room] });
 }
 
 export function resolveRoom(
