@@ -12,7 +12,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 
 const CHATGPT_HOME_SETUP_PROMPT =
-  'I need to set up my house for smart devices. Open https://tryportego.com and create a standard 180 m² house split across two floors. The 90 m² ground floor should contain a kitchen, living room, two bedrooms, a bathroom, and a common-space room connecting all the other rooms. Add one light to every ground-floor room except the common space. In the living room, add a second light named "TV lamp." Add a 90 m² attic floor with three rooms and only one light across the entire attic. Remember to add appropriate doors and windows on both floors.';
+  'I need to set up my house for smart devices. Open https://tryportego.com and create a standard 180 m² house split across two floors. The 90 m² ground floor should contain a kitchen, living room, two bedrooms, a bathroom, and a common-space room connecting all the other rooms. Add one light to every ground-floor room except the common space. In the living room, add a second light named "TV lamp" and place it close to the right wall. Add a 90 m² attic floor with three rooms and only one light across the entire attic. Remember to add appropriate doors and windows on both floors.';
 
 function ChatGptMark() {
   return (
