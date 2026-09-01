@@ -126,6 +126,7 @@ export function HomeCanvas({
           selectedRoomId={selectedRoomId}
           onSelectDevice={onSelectDevice}
           onSelectRoom={onSelectRoom}
+          onSelectFloor={onSelectFloor}
           onUpdateRoom={onUpdateRoom}
           onMoveDevice={onMoveDevice}
           onToggleDevice={onToggleDevice}

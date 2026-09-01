@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Portego">
+  <path
+    fill="currentColor"
+    d="M8 58V28C8 15.85 17.85 6 30 6H34C46.15 6 56 15.85 56 28V58H44V28C44 22.48 39.52 18 34 18H30C24.48 18 20 22.48 20 28V58H8Z"
+  />
+  <path
+    fill="currentColor"
+    d="M26 58V42C26 38.69 28.69 36 32 36C35.31 36 38 38.69 38 42V58H26Z"
+  />
+</svg>

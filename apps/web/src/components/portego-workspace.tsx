@@ -1098,14 +1098,14 @@ export function PortegoWorkspace() {
     (floor: string) => {
       if (floor === activeFloor) {
         setActiveFloorExpanded((expanded) => !expanded);
-        selectRoom(undefined);
+        selectDetails("floor");
         return;
       }
       setActiveFloor(floor);
       setActiveFloorExpanded(true);
-      selectRoom(undefined);
+      selectDetails("floor");
     },
-    [activeFloor, selectRoom],
+    [activeFloor, selectDetails],
   );
 
   const run = useCallback(async (action: () => Promise<void>) => {
