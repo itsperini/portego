@@ -1,0 +1,23 @@
+{
+  "name": "@portego/gateway-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "portego": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "discover": "tsx src/index.ts gateway discover",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@portego/adapter-shelly": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "4.23.13",
+    "tsup": "8.5.1"
+  }
+}

@@ -20,8 +20,10 @@ walking skeleton is deliberately small but complete:
       server/              HTTP API, remote MCP server, gateway relay
     gateway/
       agent/               Linux gateway runtime and reconnect loop
+      cli/                 local gateway setup and discovery commands
     adapters/
       simulated/           deterministic virtual device adapter
+      shelly/              local Shelly mDNS and HTTP discovery
     packages/
       home-model/          rooms, devices, openings, bindings, state
       gateway-protocol/    versioned cloud-gateway messages
@@ -61,6 +63,35 @@ Then open:
 The root development command starts the web app, server, and simulated gateway
 together. If the server is unavailable, the canvas falls back to an explicit
 browser-local demo so its human controls and WebMCP tools remain testable.
+
+## Discover Shelly devices locally
+
+The first real gateway integration discovers Shelly Gen1 and Gen2+ devices on
+the gateway's current LAN without a Portego account or cloud connection:
+
+    pnpm gateway:discover
+
+The command listens for `_shelly._tcp` and Shelly `_http._tcp` mDNS
+advertisements for six seconds. It verifies only likely Shelly candidates using
+the local, read-only `GET /shelly` identification endpoint. It does not sweep
+the subnet, change a device, request device credentials, or send discovery data
+outside the machine.
+
+If multicast discovery is unavailable but the device address is known:
+
+    pnpm gateway:discover -- --host 192.168.1.42
+
+Useful options:
+
+    pnpm gateway:discover -- --timeout 12
+    pnpm gateway:discover -- --host shellyplus1pm.local --json
+    pnpm gateway:discover -- --no-mdns --host 192.168.1.42
+
+The gateway machine and Shelly devices must be on a LAN where multicast DNS is
+allowed. Guest networks, client isolation, VLAN boundaries, host firewalls, and
+some VPNs can prevent advertisements from reaching the gateway. This MVP only
+identifies devices; capability enumeration, credentials, control, claiming,
+background operation, and cloud relay come next.
 
 ## Try the vertical slice
 
@@ -139,8 +170,9 @@ tests, and creates production builds.
 - Linux gateway: build gateway/agent for ARM64 or AMD64.
 
 Production authentication, persistent database storage, gateway claiming,
-device discovery/pairing, and a real protocol adapter are intentionally outside
-this pre-login walking skeleton.
+device pairing/control, and background service installation are intentionally
+outside this pre-login walking skeleton. Local Shelly identification is now the
+first real protocol discovery slice.
 
 The detailed product and engineering blueprint is maintained one directory
 above this repository in PORTEGO_PROJECT_BLUEPRINT.md.
