@@ -83,28 +83,13 @@ a:focus-visible,
 }
 
 .brand-mark {
-  position: relative;
-  width: 25px;
-  height: 25px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
-  padding: 4px;
-  background: var(--ink-strong);
-  border-radius: 6px 6px 10px 6px;
-}
-
-.brand-mark span {
-  border: 1.5px solid var(--paper);
-}
-
-.brand-mark span:first-child {
-  border-right: 0;
-}
-
-.brand-mark span:last-child {
-  border-left-color: var(--signal);
-  border-bottom-color: var(--signal);
+  width: 20px;
+  height: 29px;
+  flex: 0 0 auto;
+  color: var(--ink-strong);
+  background: currentColor;
+  -webkit-mask: url("/assets/portego-mark.svg") center / contain no-repeat;
+  mask: url("/assets/portego-mark.svg") center / contain no-repeat;
 }
 
 .brand-name {

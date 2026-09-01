@@ -1437,10 +1437,7 @@ export function PortegoWorkspace() {
     <main className="workspace">
       <header className="topbar">
         <a className="brand" href="/" aria-label="Portego home">
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-          </span>
+          <span className="brand-mark" aria-hidden="true" />
           <span className="brand-name">portego</span>
         </a>
         <button className="dashboard-button" type="button">
