@@ -10,19 +10,29 @@ export async function handleCloudMessage(
   rawMessage: unknown,
   gatewayId: string,
   adapter: DeviceAdapter,
+  discover?: (
+    methods: Array<"mdns" | "ssdp" | "manual" | "ble" | "matter">,
+    host?: string,
+  ) => Promise<{ candidates: unknown[]; providers: unknown[] }>,
 ): Promise<unknown[]> {
   const message = cloudMessageSchema.parse(rawMessage);
+
+  if (message.type === "cloud.heartbeat.ack") return [];
 
   if (message.type === "cloud.discovery.start") {
     if (isExpired(message.expiresAt)) {
       return [];
     }
+    const result = discover
+      ? await discover(message.methods, message.host)
+      : { candidates: [], providers: [], endpoints: await adapter.discover() };
     return [
       {
         ...messageEnvelope(gatewayId),
         type: "gateway.discovery.result",
         correlationId: message.messageId,
-        endpoints: await adapter.discover(),
+        endpoints: [],
+        ...result,
       },
     ];
   }

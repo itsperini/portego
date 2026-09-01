@@ -4,20 +4,24 @@ Portego is a conversational control plane and digital twin for the smart home.
 Describe a home to an AI assistant, see it become a spatial model, bind physical
 hardware endpoints to designed devices, and control those devices through MCP.
 
-This repository contains every Portego runtime and shared contract. The first
-walking skeleton is deliberately small but complete:
+This repository contains every Portego runtime and shared contract. The current
+private-beta foundation is deliberately small but complete:
 
 1. Codex adds a room and device through site tools (WebMCP).
 2. A simulated Linux gateway connects to the cloud service over WebSocket.
 3. The device binds to the discovered virtual light.
 4. The remote MCP tool controls the light.
 5. Confirmed reported state appears on the same canvas.
+6. A person can log in, import that browser-local home, and persist future edits.
+7. A Linux gateway can be claimed by the account and maintain its own secure
+   WebSocket identity.
 
 ## Monorepo
 
     apps/
       web/                 Next.js + Konva spatial editor and WebMCP tools
-      server/              HTTP API, remote MCP server, gateway relay
+      api/                 FastAPI auth, PostgreSQL homes, gateway claiming/relay
+      server/              Legacy TypeScript MCP and relay prototype
     gateway/
       agent/               Linux gateway runtime and reconnect loop
       cli/                 local gateway setup and discovery commands
@@ -49,25 +53,67 @@ target designed devices rather than vendor identifiers.
 
 Requirements:
 
-- Node.js 22 or newer
-- pnpm 11
+- Docker Desktop with Docker Compose
 
-Install and start all runtimes:
+Start the web app, FastAPI service, and PostgreSQL:
 
-    corepack enable
-    pnpm install
     pnpm dev
 
 Then open:
 
 - Web canvas: http://localhost:3100
-- Service health: http://localhost:4000/healthz
-- Remote MCP endpoint: http://localhost:4000/mcp
-- Gateway WebSocket: ws://localhost:4000/gateway
+- API health: http://localhost:4000/healthz
+- API documentation: http://localhost:4000/docs
+- Gateway WebSocket: ws://localhost:4000/gateway/ws
 
-The root development command starts the web app, server, and simulated gateway
-together. If the server is unavailable, the canvas falls back to an explicit
-browser-local demo so its human controls and WebMCP tools remain testable.
+Create the first private-beta login from a terminal. The password is prompted
+without being added to shell history:
+
+    docker compose exec api uv run portego-user create \
+      --email you@example.com --name "Your name"
+
+There is intentionally no public signup route. The Log In button opens a modal
+over the live blurred canvas. On first login, an account with no saved home asks
+whether to keep the browser-local design or start empty. Imported rooms,
+devices, doors, and windows are retained; simulated hardware bindings are not.
+
+For live-reload development outside containers, install Node.js 22+, pnpm 11,
+Python 3.13+, and uv, then run `pnpm dev:web` and `pnpm dev:api` in separate
+terminals. The canvas continues in browser-local mode when the API is absent.
+
+## Private-beta backend
+
+The FastAPI service is the authoritative home and identity boundary:
+
+- Argon2 password hashes and opaque, revocable HttpOnly browser sessions;
+- CSRF protection for browser mutations and explicit credentialed CORS origins;
+- PostgreSQL-backed users, homes, sessions, gateways, and claim records;
+- optimistic home revisions so stale tabs cannot overwrite newer changes;
+- one-time gateway claim codes and gateway-scoped JWTs;
+- an authenticated WebSocket registry for online gateway commands.
+
+The user session and gateway identity are separate. A Raspberry Pi never stores
+the person's password or browser cookie. It displays a URL/code, polls until the
+owner approves it, receives a gateway-only token, then opens the outbound
+WebSocket. MCP remains the assistant-facing Portego interface; it is not the
+transport between the gateway and cloud service.
+
+On the Linux gateway, pair once and then start the long-running agent:
+
+    pnpm portego -- setup --api http://localhost:4000 --name "Home Raspberry Pi"
+    pnpm dev:gateway
+
+Setup prints a URL and approval code; it never requires a browser on the
+gateway itself. The resulting gateway token is stored with owner-only file
+permissions under `~/.portego/cloud.json`. The agent uses it as a Bearer token
+for the outbound WebSocket and reconnects with bounded backoff.
+
+The authenticated header adds Gateway and user-settings controls without
+turning the canvas into a separate dashboard. Gateway settings show pairing,
+online presence, and test actions for mDNS/DNS-SD, SSDP/UPnP, a known local
+address, BLE through Linux BlueZ, and Matter commissioning services.
+Discovery requests run on the paired gateway and return normalized candidates
+and provider diagnostics to the panel; the backend does not scan the LAN.
 
 ## Set up local smart devices
 
@@ -200,19 +246,20 @@ API, and conversational edits therefore produce the same validated model.
 
     pnpm check
 
-This lints the repository, type-checks every workspace, runs unit and contract
-tests, and creates production builds.
+This lints both TypeScript and Python, type-checks every workspace, runs the
+frontend and FastAPI tests, and creates production builds. The API environment
+is locked in `apps/api/uv.lock` and database changes are applied through Alembic.
 
 ## Deployment direction
 
 - Vercel: deploy the apps/web workspace.
-- Render: apply render.yaml for the server and PostgreSQL.
+- Render: apply render.yaml for the FastAPI service and PostgreSQL.
 - Linux gateway: build gateway/agent for ARM64 or AMD64.
 
-Production authentication, cloud persistence, gateway claiming, the persistent
-Matter controller backend, and background service installation remain outside
-this pre-login walking skeleton. The local gateway foundation and Shelly driver
-now cover discovery through normalized endpoint inventory.
+Public account creation, email recovery, multiple homes, the production remote
+MCP authorization flow, the persistent Matter controller backend, and gateway
+background-service installation remain future work. Private-beta login, cloud
+home persistence, gateway claiming, and the relay boundary are implemented.
 
 The detailed product and engineering blueprint is maintained one directory
 above this repository in PORTEGO_PROJECT_BLUEPRINT.md.

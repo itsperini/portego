@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { z } from "zod";
 import {
   type CredentialVault,
   type DiscoveredDevice,
@@ -32,6 +33,34 @@ async function atomicJsonWrite(path: string, value: unknown, mode = 0o600): Prom
 
 export function defaultGatewayStateDirectory(): string {
   return process.env.PORTEGO_STATE_DIR ?? join(homedir(), ".portego");
+}
+
+const gatewayCloudCredentialsSchema = z.object({
+  version: z.literal(1),
+  apiUrl: z.string().url(),
+  websocketUrl: z.string().url(),
+  gatewayId: z.string().min(1),
+  gatewayToken: z.string().min(20),
+  claimedAt: z.string().datetime(),
+});
+
+export type GatewayCloudCredentials = z.infer<typeof gatewayCloudCredentialsSchema>;
+
+export class GatewayCloudCredentialsStore {
+  readonly #path: string;
+
+  constructor(stateDirectory = defaultGatewayStateDirectory()) {
+    this.#path = join(stateDirectory, "cloud.json");
+  }
+
+  async read(): Promise<GatewayCloudCredentials | undefined> {
+    const value = await readJson(this.#path);
+    return value === undefined ? undefined : gatewayCloudCredentialsSchema.parse(value);
+  }
+
+  async write(credentials: GatewayCloudCredentials): Promise<void> {
+    await atomicJsonWrite(this.#path, gatewayCloudCredentialsSchema.parse(credentials));
+  }
 }
 
 export class GatewayStateStore {

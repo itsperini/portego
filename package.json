@@ -10,16 +10,20 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "dev": "turbo run dev",
+    "check": "pnpm lint && pnpm lint:api && pnpm typecheck && pnpm test && pnpm test:api && pnpm build",
+    "dev": "docker compose up --build",
+    "dev:legacy": "turbo run dev",
     "dev:web": "pnpm --filter @portego/web dev",
+    "dev:api": "uv run --project apps/api uvicorn portego_api.main:app --reload --host 0.0.0.0 --port 4000",
     "dev:server": "pnpm --filter @portego/server dev",
     "dev:gateway": "pnpm --filter @portego/gateway-agent dev",
     "gateway:discover": "pnpm --filter @portego/gateway-cli discover",
     "portego": "pnpm --filter @portego/gateway-cli exec tsx src/index.ts gateway",
     "format": "biome format --write .",
     "lint": "biome check .",
+    "lint:api": "uv run --project apps/api ruff check apps/api",
     "test": "turbo run test",
+    "test:api": "uv run --project apps/api pytest -q",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {

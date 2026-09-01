@@ -1,7 +1,18 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
   "files": {
-    "includes": ["**", "!**/.next", "!**/.turbo", "!**/dist", "!**/coverage", "!**/node_modules"]
+    "includes": [
+      "**",
+      "!**/.next",
+      "!**/.turbo",
+      "!**/.venv",
+      "!**/.pytest_cache",
+      "!**/.ruff_cache",
+      "!**/__pycache__",
+      "!**/dist",
+      "!**/coverage",
+      "!**/node_modules"
+    ]
   },
   "formatter": {
     "enabled": true,

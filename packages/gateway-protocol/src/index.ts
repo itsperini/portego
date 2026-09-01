@@ -2,12 +2,13 @@ import { deviceEndpointSchema, deviceStateSchema } from "@portego/home-model";
 import { z } from "zod";
 
 export const protocolVersion = "0.1";
+const isoTimestampSchema = z.iso.datetime({ offset: true });
 
 const envelopeSchema = z.object({
   protocolVersion: z.literal(protocolVersion),
   messageId: z.string().min(1),
   gatewayId: z.string().min(1),
-  sentAt: z.string().datetime(),
+  sentAt: isoTimestampSchema,
 });
 
 export const gatewayHelloSchema = envelopeSchema.extend({
@@ -23,7 +24,33 @@ export const gatewayHeartbeatSchema = envelopeSchema.extend({
 export const gatewayDiscoveryResultSchema = envelopeSchema.extend({
   type: z.literal("gateway.discovery.result"),
   correlationId: z.string().min(1),
-  endpoints: z.array(deviceEndpointSchema),
+  endpoints: z.array(deviceEndpointSchema).default([]),
+  candidates: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        manufacturer: z.string().optional(),
+        model: z.string().optional(),
+        protocol: z.string().optional(),
+        driver: z.string().optional(),
+        confidence: z.number().min(0).max(1).optional(),
+        endpointCount: z.number().int().nonnegative(),
+        setupStatus: z.string().min(1),
+        warnings: z.array(z.string()).default([]),
+      }),
+    )
+    .default([]),
+  providers: z
+    .array(
+      z.object({
+        providerId: z.string().min(1),
+        status: z.enum(["ok", "unavailable", "failed"]),
+        observationCount: z.number().int().nonnegative(),
+        message: z.string().optional(),
+      }),
+    )
+    .default([]),
 });
 
 export const gatewayCommandResultSchema = envelopeSchema.extend({
@@ -43,14 +70,21 @@ export const gatewayStateEventSchema = envelopeSchema.extend({
 
 export const cloudDiscoverCommandSchema = envelopeSchema.extend({
   type: z.literal("cloud.discovery.start"),
-  expiresAt: z.string().datetime(),
+  expiresAt: isoTimestampSchema,
+  methods: z.array(z.enum(["mdns", "ssdp", "manual", "ble", "matter"])).min(1),
+  host: z.string().min(1).optional(),
+});
+
+export const cloudHeartbeatAckSchema = z.object({
+  type: z.literal("cloud.heartbeat.ack"),
+  receivedAt: isoTimestampSchema,
 });
 
 export const cloudDeviceCommandSchema = envelopeSchema.extend({
   type: z.literal("cloud.device.set_state"),
   endpointId: z.string().min(1),
   state: deviceStateSchema,
-  expiresAt: z.string().datetime(),
+  expiresAt: isoTimestampSchema,
 });
 
 export const gatewayMessageSchema = z.discriminatedUnion("type", [
@@ -64,6 +98,7 @@ export const gatewayMessageSchema = z.discriminatedUnion("type", [
 export const cloudMessageSchema = z.discriminatedUnion("type", [
   cloudDiscoverCommandSchema,
   cloudDeviceCommandSchema,
+  cloudHeartbeatAckSchema,
 ]);
 
 export type GatewayMessage = z.infer<typeof gatewayMessageSchema>;

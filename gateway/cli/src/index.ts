@@ -6,6 +6,7 @@ import {
   type DiscoveryCandidate,
   type DiscoverySession,
   deviceForAssistant,
+  GatewayCloudCredentialsStore,
   redactForDisplay,
 } from "@portego/gateway-core";
 import { createGatewayRuntime, defaultDiscoveryProviders } from "@portego/gateway-runtime";
@@ -14,6 +15,7 @@ import { type DiscoverArguments, parseArguments } from "./arguments.js";
 const HELP = `Portego gateway CLI
 
 AI-friendly setup workflow:
+  portego gateway setup [--api <url>] [--name <gateway-name>]
   portego gateway capabilities
   portego gateway discover [--ble] [--all]
   portego gateway candidate <candidate-id>
@@ -37,6 +39,84 @@ Commissioning options:
 Sensitive values are never accepted as command-line flags because shell process
 lists and history can expose them. Start the command with --input-stdin, paste
 the requested JSON object, and then finish the input stream.`;
+
+type ClaimStart = {
+  deviceCode: string;
+  userCode: string;
+  verificationUrl: string;
+  expiresAt: string;
+  intervalSeconds: number;
+};
+
+type ClaimPoll =
+  | { status: "pending" }
+  | {
+      status: "approved";
+      gatewayId: string;
+      gatewayToken: string;
+      websocketUrl: string;
+    };
+
+function apiPath(apiUrl: string, path: string): string {
+  return `${apiUrl.replace(/\/$/, "")}${path}`;
+}
+
+async function responseJson<T>(response: Response): Promise<T> {
+  const value = (await response.json()) as { detail?: string } & T;
+  if (!response.ok) throw new Error(value.detail ?? `Portego API returned ${response.status}.`);
+  return value;
+}
+
+async function setupGateway(
+  args: Extract<ReturnType<typeof parseArguments>, { command: "setup" }>,
+) {
+  const claim = await responseJson<ClaimStart>(
+    await fetch(apiPath(args.apiUrl, "/api/gateway/claim/start"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gatewayName: args.gatewayName, agentVersion: "0.1.0" }),
+    }),
+  );
+  if (args.json) {
+    console.log(
+      JSON.stringify({
+        status: "awaiting_approval",
+        userCode: claim.userCode,
+        verificationUrl: claim.verificationUrl,
+      }),
+    );
+  } else {
+    console.log("Open this URL on any device and log in to Portego:");
+    console.log(`  ${claim.verificationUrl}`);
+    console.log(`\nApproval code: ${claim.userCode}`);
+    console.log("Waiting for approval…");
+  }
+
+  const expiresAt = new Date(claim.expiresAt).getTime();
+  while (Date.now() < expiresAt) {
+    await new Promise((resolve) => setTimeout(resolve, claim.intervalSeconds * 1_000));
+    const result = await responseJson<ClaimPoll>(
+      await fetch(apiPath(args.apiUrl, "/api/gateway/claim/poll"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceCode: claim.deviceCode }),
+      }),
+    );
+    if (result.status === "pending") continue;
+    await new GatewayCloudCredentialsStore().write({
+      version: 1,
+      apiUrl: args.apiUrl,
+      websocketUrl: result.websocketUrl,
+      gatewayId: result.gatewayId,
+      gatewayToken: result.gatewayToken,
+      claimedAt: new Date().toISOString(),
+    });
+    if (args.json) console.log(JSON.stringify({ status: "paired", gatewayId: result.gatewayId }));
+    else console.log("Gateway paired. Start the Portego agent to bring it online.");
+    return;
+  }
+  throw new Error("The gateway approval code expired. Run setup again.");
+}
 
 function runtimeForDiscovery(args: DiscoverArguments) {
   const providers = defaultDiscoveryProviders().filter(
@@ -153,6 +233,11 @@ async function main(): Promise<void> {
   }
   if (args.command === "help") {
     console.log(HELP);
+    return;
+  }
+
+  if (args.command === "setup") {
+    await setupGateway(args);
     return;
   }
 

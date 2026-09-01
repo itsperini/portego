@@ -2,6 +2,24 @@ import { describe, expect, it } from "vitest";
 import { parseArguments } from "../src/arguments.js";
 
 describe("gateway CLI arguments", () => {
+  it("accepts a cloud setup target without opening a browser", () => {
+    expect(
+      parseArguments([
+        "gateway",
+        "setup",
+        "--api",
+        "https://api.tryportego.com",
+        "--name",
+        "Home Pi",
+      ]),
+    ).toEqual({
+      command: "setup",
+      apiUrl: "https://api.tryportego.com",
+      gatewayName: "Home Pi",
+      json: false,
+    });
+  });
+
   it("accepts protocol-neutral discovery options", () => {
     expect(
       parseArguments([

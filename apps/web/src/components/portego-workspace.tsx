@@ -26,15 +26,19 @@ import {
   PanelRightOpen,
   Plug,
   Plus,
+  Router,
   SquareDashed,
   ToggleLeft,
   Trash2,
   Unlink,
+  UserRound,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePortegoAuth } from "../hooks/use-portego-auth";
 import { usePortegoHome } from "../hooks/use-portego-home";
 import { useWebMcp } from "../hooks/use-webmcp";
+import { GatewayModal, HomeImportModal, LoginModal, ProfileModal } from "./account-ui";
 import { HomeCanvas } from "./home-canvas";
 
 type DeviceCardProps = {
@@ -950,11 +954,15 @@ function RoomCard({
 }
 
 export function PortegoWorkspace() {
+  const auth = usePortegoAuth();
   const {
     home,
     error,
     history,
+    needsHomeImport,
     getHome,
+    importCurrentHome,
+    startEmptyHome,
     updateHomeDetails,
     updateFloorDetails,
     removeFloor,
@@ -974,7 +982,7 @@ export function PortegoWorkspace() {
     redo,
     setDeviceState,
     reset,
-  } = usePortegoHome();
+  } = usePortegoHome(auth);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>();
   const [selectedRoomId, setSelectedRoomId] = useState<string>();
   const [selectedDetails, setSelectedDetails] = useState<"home" | "floor">();
@@ -984,6 +992,22 @@ export function PortegoWorkspace() {
   const [activeFloorExpanded, setActiveFloorExpanded] = useState(true);
   const [activity, setActivity] = useState("The home is ready for a conversational edit.");
   const [busy, setBusy] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [gatewayOpen, setGatewayOpen] = useState(false);
+  const [initialClaimCode, setInitialClaimCode] = useState<string>();
+
+  useEffect(() => {
+    const claimCode = new URLSearchParams(window.location.search).get("claim") ?? undefined;
+    if (!claimCode || auth.loading) return;
+    setInitialClaimCode(claimCode);
+    if (auth.authenticated) {
+      setLoginOpen(false);
+      setGatewayOpen(true);
+    } else {
+      setLoginOpen(true);
+    }
+  }, [auth.authenticated, auth.loading]);
 
   const webMcpActions = useMemo(
     () => ({
@@ -1440,9 +1464,38 @@ export function PortegoWorkspace() {
           <span className="brand-mark" aria-hidden="true" />
           <span className="brand-name">portego</span>
         </a>
-        <button className="dashboard-button" type="button">
-          Dashboard
-        </button>
+        <div className="topbar-account-actions">
+          {auth.authenticated ? (
+            <>
+              <button
+                className="gateway-nav-button"
+                type="button"
+                onClick={() => setGatewayOpen(true)}
+              >
+                <Router size={15} />
+                Gateway
+              </button>
+              <button
+                className="profile-nav-button"
+                type="button"
+                onClick={() => setProfileOpen(true)}
+              >
+                <span>
+                  {(auth.user?.displayName || auth.user?.email || "P").slice(0, 1).toUpperCase()}
+                </span>
+                <span className="profile-nav-copy">
+                  <strong>{auth.user?.displayName || "Account"}</strong>
+                  <small>Settings</small>
+                </span>
+              </button>
+            </>
+          ) : (
+            <button className="login-nav-button" type="button" onClick={() => setLoginOpen(true)}>
+              <UserRound size={15} />
+              Log In
+            </button>
+          )}
+        </div>
       </header>
 
       <div className={`workspace-grid ${inspectorExpanded ? "inspector-open" : ""}`}>
@@ -1657,6 +1710,40 @@ export function PortegoWorkspace() {
           {home.openings.length} openings · {home.bindings.length} physical bindings
         </span>
       </footer>
+
+      {loginOpen ? <LoginModal onClose={() => setLoginOpen(false)} onLogin={auth.login} /> : null}
+      {auth.authenticated && auth.user && profileOpen ? (
+        <ProfileModal
+          user={auth.user}
+          onClose={() => setProfileOpen(false)}
+          onSave={auth.updateProfile}
+          onLogout={auth.logout}
+        />
+      ) : null}
+      {auth.authenticated && needsHomeImport ? (
+        <HomeImportModal
+          home={home}
+          onImport={async () => {
+            await importCurrentHome();
+            auth.markHomeCreated();
+          }}
+          onStartEmpty={async () => {
+            await startEmptyHome();
+            auth.markHomeCreated();
+          }}
+        />
+      ) : null}
+      {auth.authenticated && auth.csrfToken && gatewayOpen && !needsHomeImport ? (
+        <GatewayModal
+          csrfToken={auth.csrfToken}
+          initialClaimCode={initialClaimCode}
+          onClose={() => {
+            setGatewayOpen(false);
+            setInitialClaimCode(undefined);
+            if (window.location.search.includes("claim=")) window.history.replaceState({}, "", "/");
+          }}
+        />
+      ) : null}
     </main>
   );
 }

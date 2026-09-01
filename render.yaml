@@ -1,23 +1,31 @@
 services:
   - type: web
-    name: portego-server
-    runtime: node
+    name: portego-api
+    runtime: docker
     region: frankfurt
     plan: starter
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @portego/server... build
-    startCommand: pnpm --filter @portego/server start
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
     healthCheckPath: /healthz
     envVars:
-      - key: NODE_VERSION
-        value: "26.7.0"
-      - key: WEB_ORIGIN
+      - key: PORTEGO_DATABASE_URL
+        fromDatabase:
+          name: portego-postgres
+          property: connectionString
+      - key: PORTEGO_WEB_ORIGINS
         sync: false
-      - key: PORTEGO_HOME_NAME
-        value: Casa Portego
+      - key: PORTEGO_WEB_URL
+        sync: false
+      - key: PORTEGO_COOKIE_SECURE
+        value: "true"
+      - key: PORTEGO_GATEWAY_JWT_SECRET
+        generateValue: true
+      - key: PORTEGO_AUTO_CREATE_TABLES
+        value: "false"
 
 databases:
   - name: portego-postgres
     region: frankfurt
-    plan: basic-256mb
+    plan: 0.1c-256mb
     databaseName: portego
     user: portego

@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@portego/adapter-simulated": "workspace:*",
+    "@portego/gateway-core": "workspace:*",
     "@portego/gateway-protocol": "workspace:*",
+    "@portego/gateway-runtime": "workspace:*",
     "@portego/home-model": "workspace:*",
     "ws": "8.21.3"
   },

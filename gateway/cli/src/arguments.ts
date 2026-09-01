@@ -29,11 +29,18 @@ export interface DeviceArguments extends OutputArguments {
   deviceId: string;
 }
 
+export interface SetupArguments extends OutputArguments {
+  command: "setup";
+  apiUrl: string;
+  gatewayName: string;
+}
+
 export type CliArguments =
   | DiscoverArguments
   | CandidateArguments
   | CommissionArguments
   | DeviceArguments
+  | SetupArguments
   | ({ command: "capabilities" | "inventory" } & OutputArguments)
   | { command: "help" };
 
@@ -75,6 +82,24 @@ export function parseArguments(rawArguments: string[]): CliArguments {
   }
   if (command === "capabilities" || command === "inventory") {
     return outputOnly(command, args);
+  }
+  if (command === "setup") {
+    const parsed: SetupArguments = {
+      command: "setup",
+      apiUrl: process.env.PORTEGO_API_URL ?? "http://localhost:4000",
+      gatewayName: process.env.PORTEGO_GATEWAY_NAME ?? "Portego home gateway",
+      json: false,
+    };
+    while (args.length > 0) {
+      const flag = args.shift();
+      if (flag === "--") continue;
+      if (flag === "--api") parsed.apiUrl = requireValue(args, flag);
+      else if (flag === "--name") parsed.gatewayName = requireValue(args, flag);
+      else if (flag === "--json") parsed.json = true;
+      else if (flag === "--help" || flag === "-h") return { command: "help" };
+      else throw new Error(`Unknown option: ${flag}`);
+    }
+    return parsed;
   }
   if (command === "candidate") {
     const candidateId = requireValue(args, "candidate");

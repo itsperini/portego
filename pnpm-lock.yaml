@@ -130,9 +130,15 @@ importers:
       '@portego/adapter-simulated':
         specifier: workspace:*
         version: link:../../adapters/simulated
+      '@portego/gateway-core':
+        specifier: workspace:*
+        version: link:../../packages/gateway-core
       '@portego/gateway-protocol':
         specifier: workspace:*
         version: link:../../packages/gateway-protocol
+      '@portego/gateway-runtime':
+        specifier: workspace:*
+        version: link:../runtime
       '@portego/home-model':
         specifier: workspace:*
         version: link:../../packages/home-model
