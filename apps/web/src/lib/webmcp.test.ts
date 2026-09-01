@@ -8,6 +8,7 @@ import {
   createDemoHome,
   moveFixture,
   removeFixture,
+  removeFloor,
   removeOpening,
   removeRoom,
   setDesiredFixtureState,
@@ -38,6 +39,10 @@ describe("Portego WebMCP tools", () => {
       },
       updateFloorDetails: async (input) => {
         home = updateFloorDetails(home, input);
+        return home;
+      },
+      removeFloor: async (input) => {
+        home = removeFloor(home, input);
         return home;
       },
       addRoom: async (input) => {
@@ -102,7 +107,7 @@ describe("Portego WebMCP tools", () => {
     });
 
     expect(registration.status).toBe("ready");
-    expect(tools.size).toBe(19);
+    expect(tools.size).toBe(20);
     await tools
       .get("home.update_details")
       ?.execute(
@@ -179,6 +184,7 @@ describe("Portego WebMCP tools", () => {
         getHome: () => createDemoHome(),
         updateHomeDetails: async () => createDemoHome(),
         updateFloorDetails: async () => createDemoHome(),
+        removeFloor: async () => createDemoHome(),
         addRoom: async () => createDemoHome(),
         updateRoom: async () => createDemoHome(),
         removeRoom: async () => createDemoHome(),

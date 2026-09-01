@@ -8,6 +8,7 @@ import {
   applyHomeChangesInputSchema,
   bindFixtureInputSchema,
   removeFixtureInputSchema,
+  removeFloorInputSchema,
   removeOpeningInputSchema,
   removeRoomInputSchema,
   setFixtureStateInputSchema,
@@ -101,6 +102,18 @@ const httpServer = createServer(async (request, response) => {
         response,
         200,
         service.updateFloorDetails(updateFloorDetailsInputSchema.parse(await readJson(request))),
+      );
+      return;
+    }
+
+    const floorMatch = url.pathname.match(/^\/api\/floors\/([^/]+)$/);
+    if (request.method === "DELETE" && floorMatch?.[1]) {
+      sendJson(
+        response,
+        200,
+        service.removeFloor(
+          removeFloorInputSchema.parse({ floorName: decodeURIComponent(floorMatch[1]) }),
+        ),
       );
       return;
     }

@@ -7,6 +7,7 @@ import type {
   HomeDocument,
   MoveFixtureInput,
   RemoveFixtureInput,
+  RemoveFloorInput,
   RemoveOpeningInput,
   RemoveRoomInput,
   SetFixtureStateInput,
@@ -21,6 +22,7 @@ export type WebMcpActions = {
   getHome: () => HomeDocument;
   updateHomeDetails: (input: UpdateHomeDetailsInput) => Promise<HomeDocument>;
   updateFloorDetails: (input: UpdateFloorDetailsInput) => Promise<HomeDocument>;
+  removeFloor: (input: RemoveFloorInput) => Promise<HomeDocument>;
   addRoom: (input: AddRoomInput) => Promise<HomeDocument>;
   updateRoom: (input: UpdateRoomInput) => Promise<HomeDocument>;
   removeRoom: (input: RemoveRoomInput) => Promise<HomeDocument>;
@@ -139,6 +141,27 @@ export async function registerPortegoTools(
           );
           onActivity?.(`Codex updated ${floor?.name ?? input.floorName}`);
           return { changed: true, floor, revision: home.revision };
+        },
+      },
+      options,
+    );
+
+    await modelContext.registerTool(
+      {
+        name: "home.remove_floor",
+        title: "Remove a floor",
+        description:
+          "Remove one named floor and every room, fixture, binding, door, and window assigned to it.",
+        inputSchema: {
+          type: "object",
+          properties: { floorName: { type: "string", minLength: 1, maxLength: 80 } },
+          required: ["floorName"],
+          additionalProperties: false,
+        },
+        execute: async (input) => {
+          const home = await actions.removeFloor(input as RemoveFloorInput);
+          onActivity?.(`Codex removed ${input.floorName}`);
+          return { changed: true, floors: home.floors, revision: home.revision };
         },
       },
       options,

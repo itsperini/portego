@@ -100,7 +100,6 @@ export const homeDocumentSchema = z.object({
   revision: z.number().int().nonnegative(),
   floors: z
     .array(floorSchema)
-    .min(1)
     .default([{ id: "floor_ground", name: "Ground floor", description: "", notes: "" }]),
   rooms: z.array(roomSchema),
   fixtures: z.array(fixtureSchema),
@@ -148,6 +147,10 @@ export const updateFloorDetailsInputSchema = z
       input.notes !== undefined,
     { message: "Provide at least one floor detail to update." },
   );
+
+export const removeFloorInputSchema = z.object({
+  floorName: z.string().trim().min(1).max(80),
+});
 
 export const addFixtureInputSchema = z.object({
   roomId: z.string().min(1).optional(),
@@ -321,6 +324,7 @@ export type HomeDocument = z.infer<typeof homeDocumentSchema>;
 export type AddRoomInput = z.input<typeof addRoomInputSchema>;
 export type UpdateHomeDetailsInput = z.infer<typeof updateHomeDetailsInputSchema>;
 export type UpdateFloorDetailsInput = z.infer<typeof updateFloorDetailsInputSchema>;
+export type RemoveFloorInput = z.infer<typeof removeFloorInputSchema>;
 export type AddFixtureInput = z.input<typeof addFixtureInputSchema>;
 export type UpdateRoomInput = z.infer<typeof updateRoomInputSchema>;
 export type RemoveRoomInput = z.infer<typeof removeRoomInputSchema>;
@@ -440,6 +444,32 @@ export function updateFloorDetails(
     ),
     rooms: home.rooms.map((room) =>
       room.floor.toLowerCase() === floor.name.toLowerCase() ? { ...room, floor: nextName } : room,
+    ),
+  });
+}
+
+export function removeFloor(home: HomeDocument, rawInput: RemoveFloorInput): HomeDocument {
+  const input = removeFloorInputSchema.parse(rawInput);
+  const floor = home.floors.find(
+    (candidate) => candidate.name.toLowerCase() === input.floorName.toLowerCase(),
+  );
+  if (!floor) throw new Error("Floor not found.");
+  const roomIds = new Set(
+    home.rooms
+      .filter((room) => room.floor.toLowerCase() === floor.name.toLowerCase())
+      .map((room) => room.id),
+  );
+  const fixtureIds = new Set(
+    home.fixtures.filter((fixture) => roomIds.has(fixture.roomId)).map((fixture) => fixture.id),
+  );
+  return touch({
+    ...home,
+    floors: home.floors.filter((candidate) => candidate.id !== floor.id),
+    rooms: home.rooms.filter((room) => !roomIds.has(room.id)),
+    fixtures: home.fixtures.filter((fixture) => !roomIds.has(fixture.roomId)),
+    bindings: home.bindings.filter((binding) => !fixtureIds.has(binding.fixtureId)),
+    openings: home.openings.filter(
+      (opening) => !roomIds.has(opening.roomId) && !roomIds.has(opening.connectsToRoomId ?? ""),
     ),
   });
 }

@@ -554,6 +554,7 @@ export function PortegoWorkspace() {
     getHome,
     updateHomeDetails,
     updateFloorDetails,
+    removeFloor,
     addRoom,
     addFixture,
     updateRoom,
@@ -588,6 +589,7 @@ export function PortegoWorkspace() {
         if (input.name && input.floorName === activeFloor) setActiveFloor(input.name);
         return next;
       },
+      removeFloor,
       addRoom,
       updateRoom,
       removeRoom,
@@ -610,6 +612,7 @@ export function PortegoWorkspace() {
       activeFloor,
       updateHomeDetails,
       updateFloorDetails,
+      removeFloor,
       addRoom,
       updateRoom,
       removeRoom,
@@ -656,6 +659,10 @@ export function PortegoWorkspace() {
     }),
     [home, visibleRoomIds],
   );
+
+  useEffect(() => {
+    if (!floors.includes(activeFloor)) setActiveFloor(floors[0] ?? "No floor");
+  }, [activeFloor, floors]);
 
   const selectFixture = useCallback((fixtureId?: string) => {
     setSelectedDetails(undefined);
@@ -964,7 +971,9 @@ export function PortegoWorkspace() {
           onSelectFixture={(fixture) => selectFixture(fixture?.id)}
           onSelectRoom={(room) => selectRoom(room?.id)}
           onSelectHome={() => selectDetails("home")}
-          onSelectFloor={() => selectDetails("floor")}
+          onSelectFloor={() => {
+            if (selectedFloor) selectDetails("floor");
+          }}
           onUpdateRoom={(input) =>
             void run(async () => {
               const next = await updateRoom(input);

@@ -17,9 +17,11 @@ import {
   type MoveFixtureInput,
   moveFixture as moveFixtureLocally,
   type RemoveFixtureInput,
+  type RemoveFloorInput,
   type RemoveOpeningInput,
   type RemoveRoomInput,
   removeFixture as removeFixtureLocally,
+  removeFloor as removeFloorLocally,
   removeOpening as removeOpeningLocally,
   removeRoom as removeRoomLocally,
   type SetFixtureStateInput,
@@ -150,6 +152,24 @@ export function usePortegoHome() {
       } catch (requestError) {
         if (connectionMode === "cloud") throw requestError;
         return acceptLocalMutation(updateFloorDetailsLocally(homeRef.current, input));
+      }
+    },
+    [acceptCloudMutation, acceptLocalMutation, connectionMode],
+  );
+
+  const removeFloor = useCallback(
+    async (input: RemoveFloorInput) => {
+      try {
+        const next = await request<HomeDocument>(
+          `/api/floors/${encodeURIComponent(input.floorName)}`,
+          { method: "DELETE" },
+        );
+        setConnectionMode("cloud");
+        setError(null);
+        return acceptCloudMutation(next);
+      } catch (requestError) {
+        if (connectionMode === "cloud") throw requestError;
+        return acceptLocalMutation(removeFloorLocally(homeRef.current, input));
       }
     },
     [acceptCloudMutation, acceptLocalMutation, connectionMode],
@@ -566,6 +586,7 @@ export function usePortegoHome() {
     getHome: () => homeRef.current,
     updateHomeDetails,
     updateFloorDetails,
+    removeFloor,
     addRoom,
     addFixture,
     updateRoom,

@@ -68,11 +68,12 @@ Open the canvas in the Codex built-in browser and ask:
 
 > Create a kitchen, then add a ceiling light and turn it on at 40 percent.
 
-The top-level page registers 19 imperative site tools:
+The top-level page registers 20 imperative site tools:
 
 - home.get_document
 - home.update_details
 - home.update_floor_details
+- home.remove_floor
 - home.add_room
 - home.update_room
 - home.remove_room

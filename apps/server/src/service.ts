@@ -17,9 +17,11 @@ import {
   type MoveFixtureInput,
   moveFixture,
   type RemoveFixtureInput,
+  type RemoveFloorInput,
   type RemoveOpeningInput,
   type RemoveRoomInput,
   removeFixture,
+  removeFloor,
   removeOpening,
   removeRoom,
   resolveFixture,
@@ -117,6 +119,10 @@ export class PortegoService {
 
   updateFloorDetails(input: UpdateFloorDetailsInput): HomeDocument {
     return this.#commit((home) => updateFloorDetails(home, input));
+  }
+
+  removeFloor(input: RemoveFloorInput): HomeDocument {
+    return this.#commit((home) => removeFloor(home, input));
   }
 
   createRoom(input: AddRoomInput): HomeDocument {

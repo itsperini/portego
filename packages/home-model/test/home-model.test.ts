@@ -9,6 +9,7 @@ import {
   createDemoHome,
   endpointForFixture,
   moveFixture,
+  removeFloor,
   removeRoom,
   setDesiredFixtureState,
   unbindFixture,
@@ -38,6 +39,9 @@ describe("home model", () => {
       description: "A flexible upper level",
     });
     expect(home.rooms[0]?.floor).toBe("Mansarda");
+    home = removeFloor(home, { floorName: "Mansarda" });
+    expect(home.floors.some((floor) => floor.name === "Mansarda")).toBe(false);
+    expect(home.rooms).toHaveLength(0);
   });
 
   it("keeps a fixture independent from its automatically bound endpoint", () => {
