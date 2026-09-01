@@ -83,8 +83,8 @@ a:focus-visible,
 }
 
 .brand-mark {
-  width: 20px;
-  height: 29px;
+  width: 25px;
+  height: 36px;
   flex: 0 0 auto;
   color: var(--ink-strong);
   background: currentColor;
