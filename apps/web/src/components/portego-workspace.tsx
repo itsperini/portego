@@ -32,7 +32,7 @@ import {
   Unlink,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePortegoHome } from "../hooks/use-portego-home";
 import { useWebMcp } from "../hooks/use-webmcp";
 import { HomeCanvas } from "./home-canvas";
@@ -549,14 +549,27 @@ function DeviceCard({
   const [type, setType] = useState<DeviceType>(device.type);
   const [config, setConfig] = useState<DeviceConfig>(device.config);
   const [brightness, setBrightness] = useState(endpoint?.reportedState.brightness ?? 72);
+  const savedDeviceSignature = JSON.stringify({
+    id: device.id,
+    label: device.label,
+    roomId: device.roomId,
+    type: device.type,
+    config: device.config,
+  });
+  const lastAppliedDeviceSignature = useRef("");
 
   useEffect(() => {
+    if (lastAppliedDeviceSignature.current === savedDeviceSignature) return;
+    lastAppliedDeviceSignature.current = savedDeviceSignature;
     setLabel(device.label);
     setRoomId(device.roomId);
     setType(device.type);
     setConfig(device.config);
+  }, [device, savedDeviceSignature]);
+
+  useEffect(() => {
     setBrightness(endpoint?.reportedState.brightness ?? 72);
-  }, [endpoint?.reportedState.brightness, device]);
+  }, [endpoint?.reportedState.brightness]);
 
   const draftCapabilities = capabilitiesForDevice(type, config);
   const configurationChanged =
@@ -1064,7 +1077,6 @@ export function PortegoWorkspace() {
     setSelectedDetails(undefined);
     setSelectedRoomId(undefined);
     setSelectedDeviceId(deviceId);
-    setInspectorExpanded(false);
   }, []);
 
   const selectRoom = useCallback((roomId?: string) => {
@@ -1072,7 +1084,6 @@ export function PortegoWorkspace() {
     setSelectedDetails(undefined);
     setSelectedDeviceId(undefined);
     setSelectedRoomId(roomId);
-    setInspectorExpanded(false);
   }, []);
 
   const selectDetails = useCallback((details: "home" | "floor") => {

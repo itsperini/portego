@@ -680,6 +680,50 @@ export function removeRoom(home: HomeDocument, rawInput: RemoveRoomInput): HomeD
   });
 }
 
+function suggestDevicePosition(home: HomeDocument, room: Room) {
+  const insetX = Math.min(42, room.width / 4);
+  const insetY = Math.min(42, room.height / 4);
+  const left = room.x + insetX;
+  const right = room.x + room.width - insetX;
+  const top = room.y + insetY;
+  const bottom = room.y + room.height - insetY;
+  const at = (xRatio: number, yRatio: number) => ({
+    x: left + (right - left) * xRatio,
+    y: top + (bottom - top) * yRatio,
+  });
+  const center = at(0.5, 0.5);
+  const candidates = [
+    center,
+    at(0, 0),
+    at(1, 0),
+    at(0, 1),
+    at(1, 1),
+    at(0.5, 0),
+    at(0.5, 1),
+    at(0, 0.5),
+    at(1, 0.5),
+    at(0.25, 0.25),
+    at(0.75, 0.25),
+    at(0.25, 0.75),
+    at(0.75, 0.75),
+  ];
+  const occupied = home.devices
+    .filter((device) => device.roomId === room.id)
+    .map((device) => device.position);
+
+  if (occupied.length === 0) return center;
+
+  return candidates.reduce((best, candidate) => {
+    const nearestDistance = Math.min(
+      ...occupied.map((position) => Math.hypot(candidate.x - position.x, candidate.y - position.y)),
+    );
+    const bestNearestDistance = Math.min(
+      ...occupied.map((position) => Math.hypot(best.x - position.x, best.y - position.y)),
+    );
+    return nearestDistance > bestNearestDistance ? candidate : best;
+  }, center);
+}
+
 export function addDevice(home: HomeDocument, rawInput: AddDeviceInput): HomeDocument {
   const input = addDeviceInputSchema.parse(rawInput);
   const room = input.roomId
@@ -702,10 +746,7 @@ export function addDevice(home: HomeDocument, rawInput: AddDeviceInput): HomeDoc
     label: input.label,
     type: input.type,
     config,
-    position: input.position ?? {
-      x: room.x + room.width / 2,
-      y: room.y + room.height / 2,
-    },
+    position: input.position ?? suggestDevicePosition(home, room),
     capabilities: capabilitiesForDevice(input.type, config),
   };
 

@@ -59,6 +59,31 @@ describe("home model", () => {
     expect(home.bindings).toHaveLength(1);
   });
 
+  it("places unspecified devices at distinct, well-spaced positions", () => {
+    let home = createDemoHome();
+    home = addRoom(home, { label: "Kitchen", x: 100, y: 100, width: 360, height: 240 });
+    home = addDevice(home, {
+      roomLabel: "Kitchen",
+      label: "Ceiling light",
+      type: "light",
+      autoBind: false,
+    });
+    home = addDevice(home, {
+      roomLabel: "Kitchen",
+      label: "Sink sensor",
+      type: "sensor",
+      autoBind: false,
+    });
+
+    const first = home.devices[0]?.position;
+    const second = home.devices[1]?.position;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    expect(
+      Math.hypot((first?.x ?? 0) - (second?.x ?? 0), (first?.y ?? 0) - (second?.y ?? 0)),
+    ).toBeGreaterThanOrEqual(70);
+  });
+
   it("derives capabilities from device configuration and removes incompatible bindings", () => {
     let home = createDemoHome();
     home = addRoom(home, { label: "Office" });

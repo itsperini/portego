@@ -13,7 +13,7 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
+import { Circle, Group, Layer, Line, Path, Rect, Stage, Text, Transformer } from "react-konva";
 
 const DOCUMENT_WIDTH = 1000;
 const DOCUMENT_HEIGHT = 650;
@@ -260,6 +260,62 @@ type DeviceShapeProps = {
   onToggle: () => void;
 };
 
+function DeviceGlyph({ type }: { type: Device["type"] }) {
+  const stroke = "#173146";
+  const common = {
+    stroke,
+    strokeWidth: 1.7,
+    lineCap: "round" as const,
+    lineJoin: "round" as const,
+    listening: false,
+  };
+
+  if (type === "light") {
+    return (
+      <>
+        <Path
+          data="M 0 -9 C -4.7 -9 -8 -5.5 -8 -1.2 C -8 1.8 -6.5 4.1 -3.8 5.9 C -3.1 6.4 -2.7 7.1 -2.7 8 L 2.7 8 C 2.7 7.1 3.1 6.4 3.8 5.9 C 6.5 4.1 8 1.8 8 -1.2 C 8 -5.5 4.7 -9 0 -9 Z"
+          {...common}
+        />
+        <Line points={[-2.8, 10.5, 2.8, 10.5]} {...common} />
+      </>
+    );
+  }
+
+  if (type === "switch") {
+    return (
+      <>
+        <Rect x={-9} y={-5.5} width={18} height={11} cornerRadius={5.5} {...common} />
+        <Circle x={-3.2} radius={3.1} fill={stroke} listening={false} />
+      </>
+    );
+  }
+
+  if (type === "plug") {
+    return (
+      <>
+        <Path
+          data="M -7 -2 L -7 1.5 C -7 5.6 -3.9 8.5 0 8.5 C 3.9 8.5 7 5.6 7 1.5 L 7 -2"
+          {...common}
+        />
+        <Line points={[-4.2, -8.5, -4.2, -2]} {...common} />
+        <Line points={[4.2, -8.5, 4.2, -2]} {...common} />
+        <Line points={[0, 8.5, 0, 11]} {...common} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Circle radius={2.3} fill={stroke} listening={false} />
+      <Path data="M -5.2 -5.2 C -8.5 -2.3 -8.5 2.3 -5.2 5.2" {...common} />
+      <Path data="M 5.2 -5.2 C 8.5 -2.3 8.5 2.3 5.2 5.2" {...common} />
+      <Path data="M -8.5 -8.2 C -13 -3.7 -13 3.7 -8.5 8.2" {...common} />
+      <Path data="M 8.5 -8.2 C 13 -3.7 13 3.7 8.5 8.2" {...common} />
+    </>
+  );
+}
+
 function DeviceShape({
   device,
   home,
@@ -336,72 +392,7 @@ function DeviceShape({
         strokeWidth={1.6}
         listening={false}
       />
-      {device.type === "light" ? (
-        <>
-          <Line
-            points={[-6, 0, -4, -6, 0, -9, 4, -6, 6, 0, 3, 7, -3, 7, -6, 0]}
-            closed
-            stroke="#173146"
-            strokeWidth={1.6}
-            lineCap="round"
-            lineJoin="round"
-            listening={false}
-          />
-          <Line
-            points={[-4, 11, 4, 11]}
-            stroke="#173146"
-            strokeWidth={1.5}
-            lineCap="round"
-            listening={false}
-          />
-        </>
-      ) : device.type === "switch" ? (
-        <>
-          <Rect
-            x={-7}
-            y={-9}
-            width={14}
-            height={18}
-            cornerRadius={3}
-            stroke="#173146"
-            strokeWidth={1.5}
-            listening={false}
-          />
-          <Line points={[0, -5, 0, 1]} stroke="#173146" strokeWidth={1.7} listening={false} />
-          <Circle y={5} radius={1.4} fill="#173146" listening={false} />
-        </>
-      ) : device.type === "plug" ? (
-        <>
-          <Line
-            points={[-7, -2, -7, 3, -3, 7, 3, 7, 7, 3, 7, -2]}
-            stroke="#173146"
-            strokeWidth={1.6}
-            lineCap="round"
-            lineJoin="round"
-            listening={false}
-          />
-          <Line points={[-4, -8, -4, -2]} stroke="#173146" strokeWidth={1.7} listening={false} />
-          <Line points={[4, -8, 4, -2]} stroke="#173146" strokeWidth={1.7} listening={false} />
-        </>
-      ) : (
-        <>
-          <Circle radius={3} fill="#173146" listening={false} />
-          <Line
-            points={[-6, -5, -9, 0, -6, 5]}
-            stroke="#173146"
-            strokeWidth={1.5}
-            lineCap="round"
-            listening={false}
-          />
-          <Line
-            points={[6, -5, 9, 0, 6, 5]}
-            stroke="#173146"
-            strokeWidth={1.5}
-            lineCap="round"
-            listening={false}
-          />
-        </>
-      )}
+      <DeviceGlyph type={device.type} />
       {isOn && device.type === "light" ? (
         <>
           <Line points={[0, -22, 0, -29]} stroke="#a66a09" strokeWidth={1.5} />

@@ -297,7 +297,7 @@ export async function registerPortegoTools(
         name: "home.add_device",
         title: "Add a device",
         description:
-          "Add one configured light, switch, plug, or sensor to an existing room on the visible canvas. When autoBind is enabled, Portego binds the first available hardware endpoint that provides every required capability.",
+          "Add one configured light, switch, plug, or sensor to an existing room on the visible canvas. Honor any placement the user describes. When no placement is specified, omit position so Portego chooses a sensible free location away from other devices. Never stack device symbols on top of one another. When autoBind is enabled, Portego binds the first available hardware endpoint that provides every required capability.",
         inputSchema: {
           type: "object",
           properties: {
@@ -345,9 +345,11 @@ export async function registerPortegoTools(
             },
             position: {
               type: "object",
+              description:
+                "Optional position in the 1000 by 650 floor-plan space. Use it when the user requests a location (for example, near the right wall). Inspect home.get_document first and keep device centers separated from existing devices; otherwise omit this field for automatic placement.",
               properties: {
                 x: { type: "number", minimum: 0, maximum: 1000 },
-                y: { type: "number", minimum: 0, maximum: 720 },
+                y: { type: "number", minimum: 0, maximum: 650 },
               },
               required: ["x", "y"],
               additionalProperties: false,
@@ -380,7 +382,7 @@ export async function registerPortegoTools(
         name: "home.move_device",
         title: "Move a device",
         description:
-          "Move one named device within its room on the visible Portego canvas. Coordinates use the 1000 by 650 floor-plan space.",
+          "Move one named device within its room on the visible Portego canvas. Coordinates use the 1000 by 650 floor-plan space. Honor the user's requested location. Otherwise inspect home.get_document, choose a sensible position inside the room, and keep the device center about 70 coordinate units from other device centers so symbols do not overlap.",
         inputSchema: {
           type: "object",
           properties: {
@@ -424,7 +426,7 @@ export async function registerPortegoTools(
         name: "home.update_device",
         title: "Rename or reassign a device",
         description:
-          "Rename, reconfigure, change the type of, or move a device. An incompatible physical binding is removed automatically.",
+          "Rename, reconfigure, change the type of, or move a device. When changing its room or coordinates, honor the user's requested location and otherwise inspect home.get_document to avoid overlapping another device. An incompatible physical binding is removed automatically.",
         inputSchema: {
           type: "object",
           properties: {
@@ -456,7 +458,7 @@ export async function registerPortegoTools(
             },
             roomLabel: { type: "string", minLength: 1, maxLength: 80 },
             x: { type: "number", minimum: 0, maximum: 1000 },
-            y: { type: "number", minimum: 0, maximum: 720 },
+            y: { type: "number", minimum: 0, maximum: 650 },
           },
           required: ["deviceLabel"],
           anyOf: [
@@ -698,7 +700,7 @@ export async function registerPortegoTools(
         name: "home.apply_changes",
         title: "Apply several home changes",
         description:
-          "Apply up to 50 room, device, binding, or opening changes as one atomic edit. If any change fails, none are saved and one undo reverses the entire set.",
+          "Apply up to 50 room, device, binding, or opening changes as one atomic edit. Coordinate room and device geometry as a complete layout: honor locations stated by the user, distribute unspecified devices sensibly inside their rooms, and do not place device symbols on top of one another. Omit add_device positions when automatic placement is appropriate. If any change fails, none are saved and one undo reverses the entire set.",
         inputSchema: {
           type: "object",
           properties: {
