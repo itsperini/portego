@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: portego-server
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @portego/server... build
+    startCommand: pnpm --filter @portego/server start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "26.7.0"
+      - key: WEB_ORIGIN
+        sync: false
+      - key: PORTEGO_HOME_NAME
+        value: Casa Portego
+
+databases:
+  - name: portego-postgres
+    region: frankfurt
+    plan: basic-256mb
+    databaseName: portego
+    user: portego

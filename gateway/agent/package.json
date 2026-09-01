@@ -1,0 +1,27 @@
+{
+  "name": "@portego/gateway-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "portego-agent": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@portego/adapter-simulated": "workspace:*",
+    "@portego/gateway-protocol": "workspace:*",
+    "@portego/home-model": "workspace:*",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.1",
+    "tsx": "4.23.13",
+    "tsup": "8.5.1"
+  }
+}

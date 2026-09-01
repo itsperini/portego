@@ -1,25 +1,101 @@
 # Portego
 
 Portego is a conversational control plane and digital twin for the smart home.
-It is designed so that a person can describe their home, arrange rooms and
-fixtures on a visual canvas, discover nearby smart devices through a local
-gateway, bind those devices to the design, and control the home from an
-AI assistant through MCP.
+Describe a home to an AI assistant, see it become a spatial model, bind physical
+devices to designed fixtures, and control those fixtures through MCP.
 
-The project is at its initial architecture stage. The implementation will be
-developed in this repository as an open-source, Apache-2.0-licensed project.
+This repository contains every Portego runtime and shared contract. The first
+walking skeleton is deliberately small but complete:
 
-## Planned system
+1. Codex adds a room and fixture through site tools (WebMCP).
+2. A simulated Linux gateway connects to the cloud service over WebSocket.
+3. The fixture binds to the discovered virtual light.
+4. The remote MCP tool controls the light.
+5. Confirmed reported state appears on the same canvas.
 
-- A WebMCP-enabled web canvas and account experience deployed on Vercel.
-- A cloud API, remote MCP server, and gateway relay deployed on Render.
-- A Linux gateway for device discovery, local control, and offline operation.
-- Protocol adapters beginning with a simulator and selected Matter/Wi-Fi
-  devices, with additional radio-based protocols added incrementally.
-- An MCP App experience for ChatGPT, Codex, and other compatible clients.
+## Monorepo
+
+    apps/
+      web/                 Next.js canvas and imperative WebMCP tools
+      server/              HTTP API, remote MCP server, gateway relay
+    gateway/
+      agent/               Linux gateway runtime and reconnect loop
+    adapters/
+      simulated/           deterministic virtual device adapter
+    packages/
+      home-model/          rooms, fixtures, endpoints, bindings, state
+      gateway-protocol/    versioned cloud-gateway messages
+    docs/
+      architecture/        architecture decision records
+    render.yaml            Render Blueprint
+
+The important separation is preserved in the domain model:
+
+    Room -> Fixture -> Binding -> DeviceEndpoint
+
+A fixture represents the stable human intent (“Kitchen ceiling”). A device
+endpoint represents replaceable hardware. Automations and conversations should
+target fixtures rather than vendor identifiers.
+
+## Run locally
+
+Requirements:
+
+- Node.js 22 or newer
+- pnpm 11
+
+Install and start all runtimes:
+
+    corepack enable
+    pnpm install
+    pnpm dev
+
+Then open:
+
+- Web canvas: http://localhost:3100
+- Service health: http://localhost:4000/healthz
+- Remote MCP endpoint: http://localhost:4000/mcp
+- Gateway WebSocket: ws://localhost:4000/gateway
+
+The root development command starts the web app, server, and simulated gateway
+together. If the server is unavailable, the canvas falls back to an explicit
+browser-local demo so its human controls and WebMCP tools remain testable.
+
+## Try the vertical slice
+
+Open the canvas in the Codex built-in browser and ask:
+
+> Create a kitchen, then add a ceiling light and turn it on at 40 percent.
+
+The top-level page registers five imperative site tools:
+
+- home.get_document
+- home.add_room
+- home.add_fixture
+- device.set_state
+- home.reset_demo
+
+The same actions are available through visible controls. WebMCP is a progressive
+enhancement, not a replacement for an accessible interface.
+
+## Check the repository
+
+    pnpm check
+
+This lints the repository, type-checks every workspace, runs unit and contract
+tests, and creates production builds.
+
+## Deployment direction
+
+- Vercel: deploy the apps/web workspace.
+- Render: apply render.yaml for the server and PostgreSQL.
+- Linux gateway: build gateway/agent for ARM64 or AMD64.
+
+Production authentication, persistent database storage, gateway claiming, and a
+real protocol adapter are intentionally outside this first walking skeleton.
 
 The detailed product and engineering blueprint is maintained one directory
-above this repository in `PORTEGO_PROJECT_BLUEPRINT.md`.
+above this repository in PORTEGO_PROJECT_BLUEPRINT.md.
 
 ## License
 
