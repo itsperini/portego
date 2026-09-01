@@ -246,12 +246,31 @@ a:focus-visible,
   letter-spacing: 0.1em;
 }
 
-.floor-card-copy strong {
-  overflow: hidden;
+.floor-card-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin: 3px 0;
+}
+
+.floor-card-title strong {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.floor-card-title svg {
+  flex: 0 0 auto;
+  color: var(--slate-soft);
+  transition: transform 150ms ease;
+}
+
+.floor-card-title svg.is-collapsed {
+  transform: rotate(-90deg);
 }
 
 .floor-card-copy > span {

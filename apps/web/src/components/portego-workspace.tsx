@@ -11,7 +11,16 @@ import {
   type UpdateHomeDetailsInput,
   type WallSide,
 } from "@portego/home-model";
-import { DoorOpen, Lightbulb, PanelRightOpen, Plus, Trash2, Unlink, X } from "lucide-react";
+import {
+  ChevronDown,
+  DoorOpen,
+  Lightbulb,
+  PanelRightOpen,
+  Plus,
+  Trash2,
+  Unlink,
+  X,
+} from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePortegoHome } from "../hooks/use-portego-home";
 import { useWebMcp } from "../hooks/use-webmcp";
@@ -577,6 +586,7 @@ export function PortegoWorkspace() {
   const [selectedDetails, setSelectedDetails] = useState<"home" | "floor">();
   const [inspectorExpanded, setInspectorExpanded] = useState(false);
   const [activeFloor, setActiveFloor] = useState("Ground floor");
+  const [activeFloorExpanded, setActiveFloorExpanded] = useState(true);
   const [activity, setActivity] = useState("The home is ready for a conversational edit.");
   const [busy, setBusy] = useState(false);
 
@@ -661,7 +671,10 @@ export function PortegoWorkspace() {
   );
 
   useEffect(() => {
-    if (!floors.includes(activeFloor)) setActiveFloor(floors[0] ?? "No floor");
+    if (!floors.includes(activeFloor)) {
+      setActiveFloor(floors[0] ?? "No floor");
+      setActiveFloorExpanded(true);
+    }
   }, [activeFloor, floors]);
 
   const selectFixture = useCallback((fixtureId?: string) => {
@@ -687,10 +700,16 @@ export function PortegoWorkspace() {
 
   const activateFloor = useCallback(
     (floor: string) => {
+      if (floor === activeFloor) {
+        setActiveFloorExpanded((expanded) => !expanded);
+        selectRoom(undefined);
+        return;
+      }
       setActiveFloor(floor);
+      setActiveFloorExpanded(true);
       selectRoom(undefined);
     },
-    [selectRoom],
+    [activeFloor, selectRoom],
   );
 
   const run = useCallback(async (action: () => Promise<void>) => {
@@ -897,10 +916,20 @@ export function PortegoWorkspace() {
                       type="button"
                       key={floor}
                       onClick={() => activateFloor(floor)}
+                      aria-expanded={activeFloor === floor && activeFloorExpanded}
                     >
                       <span className="floor-card-copy">
                         <small>F.{String(index + 1).padStart(2, "0")}</small>
-                        <strong>{floor}</strong>
+                        <span className="floor-card-title">
+                          <strong>{floor}</strong>
+                          <ChevronDown
+                            className={
+                              activeFloor === floor && activeFloorExpanded ? "" : "is-collapsed"
+                            }
+                            size={13}
+                            aria-hidden="true"
+                          />
+                        </span>
                         <span>
                           {floorRooms.length} rooms · {fixtureCount} fixtures
                         </span>
@@ -910,41 +939,45 @@ export function PortegoWorkspace() {
                   );
                 })}
               </div>
-              {visibleHome.rooms.length === 0 ? (
-                <p className="tree-empty">No rooms yet. The canvas is waiting for a description.</p>
-              ) : (
-                visibleHome.rooms.map((room) => {
-                  const fixtures = home.fixtures.filter((fixture) => fixture.roomId === room.id);
-                  return (
-                    <div className="tree-room" key={room.id}>
-                      <button
-                        className={`tree-room-label ${selectedRoomId === room.id ? "is-selected" : ""}`}
-                        type="button"
-                        onClick={() => selectRoom(room.id)}
-                      >
-                        <span className="room-swatch" />
-                        <span>{room.label}</span>
-                        <small>{fixtures.length}</small>
-                      </button>
-                      {fixtures.map((fixture) => {
-                        const endpoint = endpointForFixture(home, fixture.id);
-                        return (
-                          <button
-                            className={`tree-fixture ${selectedFixtureId === fixture.id ? "is-selected" : ""}`}
-                            type="button"
-                            key={fixture.id}
-                            onClick={() => selectFixture(fixture.id)}
-                          >
-                            <Lightbulb size={14} />
-                            <span>{fixture.label}</span>
-                            <i className={endpoint?.reportedState.on ? "is-on" : ""} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })
-              )}
+              {activeFloorExpanded ? (
+                visibleHome.rooms.length === 0 ? (
+                  <p className="tree-empty">
+                    No rooms yet. The canvas is waiting for a description.
+                  </p>
+                ) : (
+                  visibleHome.rooms.map((room) => {
+                    const fixtures = home.fixtures.filter((fixture) => fixture.roomId === room.id);
+                    return (
+                      <div className="tree-room" key={room.id}>
+                        <button
+                          className={`tree-room-label ${selectedRoomId === room.id ? "is-selected" : ""}`}
+                          type="button"
+                          onClick={() => selectRoom(room.id)}
+                        >
+                          <span className="room-swatch" />
+                          <span>{room.label}</span>
+                          <small>{fixtures.length}</small>
+                        </button>
+                        {fixtures.map((fixture) => {
+                          const endpoint = endpointForFixture(home, fixture.id);
+                          return (
+                            <button
+                              className={`tree-fixture ${selectedFixtureId === fixture.id ? "is-selected" : ""}`}
+                              type="button"
+                              key={fixture.id}
+                              onClick={() => selectFixture(fixture.id)}
+                            >
+                              <Lightbulb size={14} />
+                              <span>{fixture.label}</span>
+                              <i className={endpoint?.reportedState.on ? "is-on" : ""} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )
+              ) : null}
             </nav>
           </section>
 
