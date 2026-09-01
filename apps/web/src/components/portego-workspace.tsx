@@ -1114,25 +1114,170 @@ export function PortegoWorkspace() {
     () =>
       run(async () => {
         await reset();
-        const withRoom = await addRoom({
-          label: "Kitchen",
-          x: 210,
-          y: 132,
-          width: 520,
-          height: 340,
+        const complete = await applyChanges({
+          changes: [
+            {
+              op: "add_room",
+              input: { label: "Kitchen", x: 90, y: 80, width: 300, height: 230 },
+            },
+            {
+              op: "add_room",
+              input: { label: "Living room", x: 390, y: 80, width: 430, height: 310 },
+            },
+            {
+              op: "add_room",
+              input: { label: "Bedroom", x: 90, y: 310, width: 300, height: 250 },
+            },
+            {
+              op: "add_room",
+              input: { label: "Bathroom", x: 390, y: 390, width: 240, height: 170 },
+            },
+            {
+              op: "add_device",
+              input: {
+                roomLabel: "Kitchen",
+                label: "Kitchen ceiling",
+                type: "light",
+                config: { mounting: "ceiling", dimmable: true },
+                position: { x: 240, y: 190 },
+              },
+            },
+            {
+              op: "add_device",
+              input: {
+                roomLabel: "Kitchen",
+                label: "Kitchen temperature",
+                type: "sensor",
+                config: { measures: ["temperature"] },
+                position: { x: 350, y: 265 },
+              },
+            },
+            {
+              op: "add_device",
+              input: {
+                roomLabel: "Living room",
+                label: "Living ceiling",
+                type: "light",
+                config: { mounting: "ceiling", dimmable: true, colorTemperature: true },
+                position: { x: 590, y: 220 },
+                autoBind: false,
+              },
+            },
+            {
+              op: "add_device",
+              input: {
+                roomLabel: "Living room",
+                label: "Living occupancy",
+                type: "sensor",
+                config: { measures: ["occupancy"] },
+                position: { x: 770, y: 345 },
+                autoBind: false,
+              },
+            },
+            {
+              op: "add_device",
+              input: {
+                roomLabel: "Bedroom",
+                label: "Bedside lamp",
+                type: "light",
+                config: { mounting: "table", dimmable: true },
+                position: { x: 335, y: 505 },
+                autoBind: false,
+              },
+            },
+            {
+              op: "add_device",
+              input: {
+                roomLabel: "Bathroom",
+                label: "Bathroom ceiling",
+                type: "light",
+                config: { mounting: "ceiling", dimmable: false },
+                position: { x: 510, y: 475 },
+                autoBind: false,
+              },
+            },
+            {
+              op: "add_opening",
+              input: {
+                roomLabel: "Kitchen",
+                connectsToRoomLabel: "Living room",
+                label: "Kitchen opening",
+                type: "door",
+                wall: "right",
+                offset: 0.55,
+              },
+            },
+            {
+              op: "add_opening",
+              input: {
+                roomLabel: "Kitchen",
+                connectsToRoomLabel: "Bedroom",
+                label: "Bedroom door",
+                type: "door",
+                wall: "bottom",
+                offset: 0.48,
+              },
+            },
+            {
+              op: "add_opening",
+              input: {
+                roomLabel: "Living room",
+                connectsToRoomLabel: "Bathroom",
+                label: "Bathroom door",
+                type: "door",
+                wall: "bottom",
+                offset: 0.28,
+              },
+            },
+            {
+              op: "add_opening",
+              input: {
+                roomLabel: "Kitchen",
+                label: "Kitchen window",
+                type: "window",
+                wall: "top",
+                offset: 0.5,
+              },
+            },
+            {
+              op: "add_opening",
+              input: {
+                roomLabel: "Living room",
+                label: "Living window",
+                type: "window",
+                wall: "top",
+                offset: 0.6,
+              },
+            },
+            {
+              op: "add_opening",
+              input: {
+                roomLabel: "Bedroom",
+                label: "Bedroom window",
+                type: "window",
+                wall: "left",
+                offset: 0.55,
+              },
+            },
+            {
+              op: "add_opening",
+              input: {
+                roomLabel: "Bathroom",
+                label: "Bathroom window",
+                type: "window",
+                wall: "right",
+                offset: 0.5,
+              },
+            },
+          ],
         });
-        const room = withRoom.rooms.at(-1);
-        if (!room) return;
-        const complete = await addDevice({
-          roomId: room.id,
-          label: "Kitchen ceiling",
-          type: "light",
-          autoBind: true,
-        });
-        selectDevice(complete.devices.at(-1)?.id);
-        setActivity("Kitchen ceiling is bound to Simulator light 01.");
+        const kitchenCeiling = complete.devices.find(
+          (device) => device.label === "Kitchen ceiling",
+        );
+        selectDevice(kitchenCeiling?.id);
+        setActivity("The four-room demo home is ready with lights, sensors, doors, and windows.");
       }),
-    [addDevice, addRoom, reset, run, selectDevice],
+    [applyChanges, reset, run, selectDevice],
   );
 
   const addNextRoom = useCallback(

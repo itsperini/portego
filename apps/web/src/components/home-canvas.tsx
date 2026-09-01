@@ -138,7 +138,7 @@ export function HomeCanvas({
             </div>
             <span className="eyebrow">Blank home model</span>
             <h2>Start with one room.</h2>
-            <p>Describe it to Codex, or build the first kitchen and simulated light yourself.</p>
+            <p>Describe it to Codex, or load a complete four-room smart-home example.</p>
             <div className="canvas-empty-actions">
               <button className="primary-action" type="button" onClick={onBuildDemo}>
                 <Plus size={16} />
