@@ -21,12 +21,17 @@ walking skeleton is deliberately small but complete:
     gateway/
       agent/               Linux gateway runtime and reconnect loop
       cli/                 local gateway setup and discovery commands
+      discovery/           protocol-neutral LAN and BLE observations
+      runtime/             gateway composition root
     adapters/
       simulated/           deterministic virtual device adapter
-      shelly/              local Shelly mDNS and HTTP discovery
+      shelly/              Shelly identity, RPC, endpoints, and commands
+      matter/              Matter discovery and setup-code boundary
     packages/
       home-model/          rooms, devices, openings, bindings, state
       gateway-protocol/    versioned cloud-gateway messages
+      gateway-core/        candidates, drivers, vault, inventory, runtime
+      gateway-tools/       AI-safe setup operations and validation
     docs/
       architecture/        architecture decision records
     render.yaml            Render Blueprint
@@ -64,34 +69,69 @@ The root development command starts the web app, server, and simulated gateway
 together. If the server is unavailable, the canvas falls back to an explicit
 browser-local demo so its human controls and WebMCP tools remain testable.
 
-## Discover Shelly devices locally
+## Set up local smart devices
 
-The first real gateway integration discovers Shelly Gen1 and Gen2+ devices on
-the gateway's current LAN without a Portego account or cloud connection:
+The phase-two gateway is protocol-neutral. It observes the local environment
+through independent providers, aggregates duplicate observations into opaque
+candidates, asks installed drivers to identify them, and returns an explicit
+commissioning plan that an AI assistant can follow.
+
+Inspect what the current machine can support:
+
+    pnpm portego -- capabilities
+
+Discover recognized devices without a Portego account or cloud connection:
 
     pnpm gateway:discover
 
-The command listens for `_shelly._tcp` and Shelly `_http._tcp` mDNS
-advertisements for six seconds. It verifies only likely Shelly candidates using
-the local, read-only `GET /shelly` identification endpoint. It does not sweep
-the subnet, change a device, request device credentials, or send discovery data
-outside the machine.
+The default providers listen for mDNS/DNS-SD and SSDP and accept explicitly
+supplied local hosts. BLE scanning is opt-in and uses BlueZ on the Linux gateway
+target. ARP/NDP neighbor hints are also opt-in. No provider sweeps every address
+in the subnet.
+
+Useful discovery commands:
+
+    pnpm gateway:discover -- --timeout 12
+    pnpm gateway:discover -- --host 192.168.1.42
+    pnpm gateway:discover -- --ble
+    pnpm gateway:discover -- --all --json
+
+Discovery persists the latest candidate set locally. Review a candidate before
+adding it:
+
+    pnpm portego -- candidate candidate_...
+    pnpm portego -- add candidate_... --confirm
+
+Drivers describe required inputs and physical steps. Secrets are read from
+standard input rather than command-line flags, then encrypted locally with
+AES-256-GCM using a gateway-only key:
+
+    pnpm portego -- add candidate_... --confirm --input-stdin
+
+After starting the command, paste the requested JSON object on standard input
+and finish the input stream. Do not put a password directly in a shell command
+or saved shell history.
 
 If multicast discovery is unavailable but the device address is known:
 
     pnpm gateway:discover -- --host 192.168.1.42
-
-Useful options:
-
-    pnpm gateway:discover -- --timeout 12
-    pnpm gateway:discover -- --host shellyplus1pm.local --json
     pnpm gateway:discover -- --no-mdns --host 192.168.1.42
 
-The gateway machine and Shelly devices must be on a LAN where multicast DNS is
-allowed. Guest networks, client isolation, VLAN boundaries, host firewalls, and
-some VPNs can prevent advertisements from reaching the gateway. This MVP only
-identifies devices; capability enumeration, credentials, control, claiming,
-background operation, and cloud relay come next.
+The first complete driver supports Shelly Gen1 and Gen2+ identification,
+optional HTTP Digest credentials, component paging, normalized switches,
+inputs, lights, covers, meters and sensors, state refresh, and guarded commands.
+Matter DNS-SD detection and official setup-code validation are present. Actual
+Matter fabric commissioning intentionally reports itself unavailable until the
+persistent matter.js controller backend is enabled; Portego never reports a
+device as paired when only discovery succeeded.
+
+`@portego/gateway-tools` exposes the same workflow as six small, validated,
+redacted operations for a future local MCP server: capabilities, start
+discovery, inspect candidate, commission, list devices, and refresh. The
+commission operation requires literal user confirmation, and its descriptions
+tell the AI not to invent credentials or silently infer consent. Sensitive
+values are deliberately rejected as chatbot tool arguments; devices that need
+them pause for a local secure-input broker.
 
 ## Try the vertical slice
 
@@ -169,10 +209,10 @@ tests, and creates production builds.
 - Render: apply render.yaml for the server and PostgreSQL.
 - Linux gateway: build gateway/agent for ARM64 or AMD64.
 
-Production authentication, persistent database storage, gateway claiming,
-device pairing/control, and background service installation are intentionally
-outside this pre-login walking skeleton. Local Shelly identification is now the
-first real protocol discovery slice.
+Production authentication, cloud persistence, gateway claiming, the persistent
+Matter controller backend, and background service installation remain outside
+this pre-login walking skeleton. The local gateway foundation and Shelly driver
+now cover discovery through normalized endpoint inventory.
 
 The detailed product and engineering blueprint is maintained one directory
 above this repository in PORTEGO_PROJECT_BLUEPRINT.md.

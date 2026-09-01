@@ -1,123 +1,134 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  discoverShellyDevices,
-  isLikelyShellyService,
-  normalizeShellyDevice,
+  createDigestAuthorization,
+  isLikelyShellyCandidate,
+  normalizeShellyIdentity,
+  ShellyDriver,
 } from "../src/index.js";
 
-const target = {
-  address: "192.0.2.10",
-  host: "shellyplus1pm-test.local",
-  port: 80,
-  source: "shelly-mdns" as const,
-  advertisedName: "Shelly Plus 1PM",
-  url: "http://192.0.2.10:80/shelly",
+const candidate = {
+  id: "candidate_test",
+  displayName: "Shelly Plus 1PM",
+  transports: ["ip" as const],
+  addresses: [
+    {
+      host: "192.168.1.10",
+      port: 80,
+      family: "ipv4" as const,
+      protocol: "tcp" as const,
+    },
+  ],
+  serviceTypes: ["_shelly._tcp"],
+  observations: [],
+  matches: [],
+  warnings: [],
 };
 
-describe("Shelly discovery", () => {
-  it("recognizes Shelly's dedicated and legacy HTTP advertisements", () => {
-    expect(
-      isLikelyShellyService({
-        name: "Shelly Plus 1PM",
-        type: "shelly",
-        host: "device.local",
-        port: 80,
-      }),
-    ).toBe(true);
-    expect(
-      isLikelyShellyService({
-        name: "shelly1pm-AABBCCDDEEFF",
-        type: "http",
-        host: "shelly1pm-AABBCCDDEEFF.local",
-        port: 80,
-      }),
-    ).toBe(true);
-    expect(
-      isLikelyShellyService({
-        name: "Printer",
-        type: "http",
-        host: "printer.local",
-        port: 80,
-      }),
-    ).toBe(false);
+const memoryVault = {
+  values: new Map<string, Record<string, unknown>>(),
+  async put(reference: string, value: Record<string, unknown>) {
+    this.values.set(reference, value);
+  },
+  async get(reference: string) {
+    return this.values.get(reference);
+  },
+  async remove(reference: string) {
+    this.values.delete(reference);
+  },
+};
+
+describe("Shelly driver", () => {
+  it("recognizes Shelly service observations", () => {
+    expect(isLikelyShellyCandidate(candidate)).toBe(true);
   });
 
-  it("normalizes Gen2+ device information", () => {
-    const device = normalizeShellyDevice(
-      {
-        name: "Kitchen relay",
+  it("normalizes Gen1 and Gen2+ identities", () => {
+    expect(
+      normalizeShellyIdentity({
         id: "shellyplus1pm-aabbccddeeff",
         mac: "AABBCCDDEEFF",
         model: "SNSW-001P16EU",
         gen: 2,
-        ver: "1.7.0",
         app: "Plus1PM",
-        profile: "switch",
         auth_en: true,
-      },
-      target,
-    );
-
-    expect(device).toMatchObject({
-      id: "shellyplus1pm-aabbccddeeff",
-      name: "Kitchen relay",
+      }),
+    ).toMatchObject({
+      nativeId: "shellyplus1pm-aabbccddeeff",
       model: "SNSW-001P16EU",
       generation: 2,
       authEnabled: true,
-      profile: "switch",
     });
-  });
-
-  it("normalizes Gen1 device information", () => {
-    const device = normalizeShellyDevice(
-      {
+    expect(
+      normalizeShellyIdentity({
         type: "SHSW-PM",
         mac: "AA:BB:CC:DD:EE:FF",
         auth: false,
-        fw: "20230913-112003/v1.14.0-gcb84623",
-      },
-      { ...target, source: "http-mdns" },
-    );
-
-    expect(device).toMatchObject({
-      id: "shelly-aabbccddeeff",
+      }),
+    ).toMatchObject({
+      nativeId: "shelly-aabbccddeeff",
       model: "SHSW-PM",
       generation: 1,
-      mac: "AABBCCDDEEFF",
-      authEnabled: false,
     });
   });
 
-  it("verifies advertised devices and deduplicates them by native id", async () => {
-    const fetchMock = vi.fn(
-      async () =>
+  it("creates a deterministic HTTP Digest authorization header", () => {
+    const authorization = createDigestAuthorization(
+      'Digest realm="shelly", nonce="abc", qop="auth", algorithm=SHA-256',
+      { username: "admin", password: "secret" },
+      "POST",
+      new URL("http://192.0.2.10/rpc"),
+      "fixed-cnonce",
+    );
+    expect(authorization).toContain('username="admin"');
+    expect(authorization).toContain("algorithm=SHA-256");
+    expect(authorization).toContain('uri="/rpc"');
+  });
+
+  it("inspects components and creates normalized endpoints", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             id: "shellyplus1pm-aabbccddeeff",
             model: "SNSW-001P16EU",
             gen: 2,
             app: "Plus1PM",
+            auth_en: false,
           }),
           { status: 200 },
         ),
-    );
-
-    const result = await discoverShellyDevices({
-      timeoutMs: 1,
-      discoverMdns: async () => [
-        {
-          name: "Shelly Plus 1PM",
-          type: "shelly",
-          host: "shellyplus1pm-test.local",
-          port: 80,
-          addresses: ["192.0.2.10", "192.0.2.11"],
-        },
-      ],
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            result: {
+              components: [
+                {
+                  key: "switch:0",
+                  config: { id: 0, name: "Kitchen relay" },
+                  status: { id: 0, output: false, apower: 3.2, voltage: 230 },
+                },
+              ],
+              total: 1,
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+    const device = await new ShellyDriver().inspect(candidate, {
       fetch: fetchMock,
+      vault: memoryVault,
+      now: () => new Date("2026-09-01T00:00:00.000Z"),
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result.devices).toHaveLength(1);
-    expect(result.warnings).toEqual([]);
+    expect(device.endpoints).toEqual([
+      expect.objectContaining({
+        label: "Kitchen relay",
+        type: "switch",
+        capabilities: ["on_off", "power", "voltage"],
+        reportedState: { on: false, power: 3.2, voltage: 230 },
+      }),
+    ]);
   });
 });

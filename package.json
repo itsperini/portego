@@ -16,6 +16,7 @@
     "dev:server": "pnpm --filter @portego/server dev",
     "dev:gateway": "pnpm --filter @portego/gateway-agent dev",
     "gateway:discover": "pnpm --filter @portego/gateway-cli discover",
+    "portego": "pnpm --filter @portego/gateway-cli exec tsx src/index.ts gateway",
     "format": "biome format --write .",
     "lint": "biome check .",
     "test": "turbo run test",
