@@ -108,10 +108,10 @@ the canonical `HomeDocument`. It supports:
 - zoom controls and fit-to-home;
 - semantic room and fixture updates through the API and WebMCP.
 
-Selecting a fixture opens a floating property card over the canvas for naming,
-room assignment, device binding, power, brightness, and removal. Selecting a
-room opens the equivalent room card for naming, removal, and wall openings. The
-canvas remains the primary workspace; there is no permanent right inspector.
+Selecting a fixture or room reveals a compact property tab at the right edge of
+the canvas. Opening it expands a docked inspector for names, room assignment,
+device binding, power, brightness, removal, and wall openings. Closing it gives
+the space back to the canvas while keeping the selection.
 
 Portego stores room and fixture geometry, not serialized Konva nodes. Manual,
 API, and conversational edits therefore produce the same validated model.

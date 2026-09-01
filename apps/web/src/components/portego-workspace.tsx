@@ -15,6 +15,7 @@ import {
   House,
   Layers3,
   Lightbulb,
+  PanelRightOpen,
   Plus,
   Trash2,
   Unlink,
@@ -371,6 +372,7 @@ export function PortegoWorkspace() {
   } = usePortegoHome();
   const [selectedFixtureId, setSelectedFixtureId] = useState<string>();
   const [selectedRoomId, setSelectedRoomId] = useState<string>();
+  const [inspectorExpanded, setInspectorExpanded] = useState(false);
   const [activity, setActivity] = useState("The home is ready for a conversational edit.");
   const [busy, setBusy] = useState(false);
 
@@ -419,6 +421,18 @@ export function PortegoWorkspace() {
   const selectedFixture = home.fixtures.find((fixture) => fixture.id === selectedFixtureId);
   const selectedRoom = home.rooms.find((room) => room.id === selectedRoomId);
 
+  const selectFixture = useCallback((fixtureId?: string) => {
+    setSelectedRoomId(undefined);
+    setSelectedFixtureId(fixtureId);
+    setInspectorExpanded(false);
+  }, []);
+
+  const selectRoom = useCallback((roomId?: string) => {
+    setSelectedFixtureId(undefined);
+    setSelectedRoomId(roomId);
+    setInspectorExpanded(false);
+  }, []);
+
   const run = useCallback(async (action: () => Promise<void>) => {
     setBusy(true);
     try {
@@ -451,10 +465,10 @@ export function PortegoWorkspace() {
           type: "light",
           autoBind: true,
         });
-        setSelectedFixtureId(complete.fixtures.at(-1)?.id);
+        selectFixture(complete.fixtures.at(-1)?.id);
         setActivity("Kitchen ceiling is bound to Simulator light 01.");
       }),
-    [addFixture, addRoom, reset, run],
+    [addFixture, addRoom, reset, run, selectFixture],
   );
 
   const addNextRoom = useCallback(
@@ -477,11 +491,10 @@ export function PortegoWorkspace() {
         const roomLights = current.fixtures.filter((fixture) => fixture.roomId === room.id).length;
         const label = `${room.label} light ${roomLights + 1}`;
         const next = await addFixture({ roomId: room.id, label, type: "light", autoBind: true });
-        setSelectedRoomId(undefined);
-        setSelectedFixtureId(next.fixtures.at(-1)?.id);
+        selectFixture(next.fixtures.at(-1)?.id);
         setActivity(`${label} was added.`);
       }),
-    [addFixture, addRoom, getHome, run],
+    [addFixture, addRoom, getHome, run, selectFixture],
   );
 
   const toolStatusCopy = {
@@ -497,7 +510,7 @@ export function PortegoWorkspace() {
       home={home}
       fixture={selectedFixture}
       busy={busy}
-      onClose={() => setSelectedFixtureId(undefined)}
+      onClose={() => setInspectorExpanded(false)}
       onUpdate={(input) =>
         void run(async () => {
           const next = await updateFixture({ fixtureId: selectedFixture.id, ...input });
@@ -508,7 +521,7 @@ export function PortegoWorkspace() {
       onRemove={() =>
         void run(async () => {
           await removeFixture({ fixtureId: selectedFixture.id });
-          setSelectedFixtureId(undefined);
+          selectFixture(undefined);
           setActivity(`${selectedFixture.label} was removed.`);
         })
       }
@@ -537,7 +550,7 @@ export function PortegoWorkspace() {
       home={home}
       room={selectedRoom}
       busy={busy}
-      onClose={() => setSelectedRoomId(undefined)}
+      onClose={() => setInspectorExpanded(false)}
       onRename={(label) =>
         void run(async () => {
           await updateRoom({ roomId: selectedRoom.id, label });
@@ -547,7 +560,7 @@ export function PortegoWorkspace() {
       onRemove={() =>
         void run(async () => {
           await removeRoom({ roomId: selectedRoom.id });
-          setSelectedRoomId(undefined);
+          selectRoom(undefined);
           setActivity(`${selectedRoom.label} and its fixtures were removed.`);
         })
       }
@@ -595,7 +608,7 @@ export function PortegoWorkspace() {
         </div>
       </header>
 
-      <div className="workspace-grid">
+      <div className={`workspace-grid ${inspectorExpanded ? "inspector-open" : ""}`}>
         <aside className="left-rail">
           <section className="rail-section">
             <div className="section-heading">
@@ -617,10 +630,7 @@ export function PortegoWorkspace() {
                       <button
                         className={`tree-room-label ${selectedRoomId === room.id ? "is-selected" : ""}`}
                         type="button"
-                        onClick={() => {
-                          setSelectedFixtureId(undefined);
-                          setSelectedRoomId(room.id);
-                        }}
+                        onClick={() => selectRoom(room.id)}
                       >
                         <span className="room-swatch" />
                         <span>{room.label}</span>
@@ -633,10 +643,7 @@ export function PortegoWorkspace() {
                             className={`tree-fixture ${selectedFixtureId === fixture.id ? "is-selected" : ""}`}
                             type="button"
                             key={fixture.id}
-                            onClick={() => {
-                              setSelectedRoomId(undefined);
-                              setSelectedFixtureId(fixture.id);
-                            }}
+                            onClick={() => selectFixture(fixture.id)}
                           >
                             <Lightbulb size={14} />
                             <span>{fixture.label}</span>
@@ -670,14 +677,8 @@ export function PortegoWorkspace() {
           home={home}
           selectedFixtureId={selectedFixtureId}
           selectedRoomId={selectedRoomId}
-          onSelectFixture={(fixture) => {
-            setSelectedRoomId(undefined);
-            setSelectedFixtureId(fixture?.id);
-          }}
-          onSelectRoom={(room) => {
-            setSelectedFixtureId(undefined);
-            setSelectedRoomId(room?.id);
-          }}
+          onSelectFixture={(fixture) => selectFixture(fixture?.id)}
+          onSelectRoom={(room) => selectRoom(room?.id)}
           onUpdateRoom={(input) =>
             void run(async () => {
               const next = await updateRoom(input);
@@ -704,7 +705,6 @@ export function PortegoWorkspace() {
             })
           }
           onBuildDemo={() => void buildDemo()}
-          floatingCard={floatingCard}
           canUndo={history.canUndo}
           canRedo={history.canRedo}
           onUndo={() =>
@@ -721,6 +721,31 @@ export function PortegoWorkspace() {
           }
           busy={busy}
         />
+
+        <aside
+          className={`property-rail ${inspectorExpanded && floatingCard ? "is-open" : ""}`}
+          aria-label="Selected object properties"
+        >
+          {inspectorExpanded && floatingCard ? (
+            floatingCard
+          ) : (
+            <button
+              className="property-rail-trigger"
+              type="button"
+              disabled={!selectedFixture && !selectedRoom}
+              onClick={() => setInspectorExpanded(true)}
+              aria-label={
+                selectedFixture || selectedRoom
+                  ? `Open properties for ${selectedFixture?.label ?? selectedRoom?.label}`
+                  : "Select a room or fixture to view properties"
+              }
+            >
+              <PanelRightOpen size={16} />
+              <span>{selectedFixture?.label ?? selectedRoom?.label ?? "Select item"}</span>
+              <small>{selectedFixture ? "Fixture" : selectedRoom ? "Room" : "Properties"}</small>
+            </button>
+          )}
+        </aside>
       </div>
 
       <footer className="workspace-footer">

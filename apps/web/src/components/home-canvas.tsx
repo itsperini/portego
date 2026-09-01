@@ -9,7 +9,6 @@ import type {
 } from "@portego/home-model";
 import { Bot, Lightbulb, Magnet, Plus, Redo2, Undo2 } from "lucide-react";
 import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
 
 const KonvaHomeCanvas = dynamic(
   () => import("./konva-home-canvas").then((module) => module.KonvaHomeCanvas),
@@ -29,7 +28,6 @@ type HomeCanvasProps = {
   onMoveFixture: (input: MoveFixtureInput) => void;
   onToggleFixture: (fixture: Fixture) => void;
   onBuildDemo: () => void;
-  floatingCard?: ReactNode;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -47,7 +45,6 @@ export function HomeCanvas({
   onMoveFixture,
   onToggleFixture,
   onBuildDemo,
-  floatingCard,
   canUndo,
   canRedo,
   onUndo,
@@ -91,8 +88,6 @@ export function HomeCanvas({
           onMoveFixture={onMoveFixture}
           onToggleFixture={onToggleFixture}
         />
-
-        {floatingCard}
 
         {home.rooms.length === 0 ? (
           <div className="canvas-empty">
