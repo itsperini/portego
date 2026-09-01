@@ -20,6 +20,8 @@ const KonvaHomeCanvas = dynamic(
 
 type HomeCanvasProps = {
   home: HomeDocument;
+  floorName: string;
+  floorIndex: number;
   selectedFixtureId?: string;
   selectedRoomId?: string;
   onSelectFixture: (fixture?: Fixture) => void;
@@ -37,6 +39,8 @@ type HomeCanvasProps = {
 
 export function HomeCanvas({
   home,
+  floorName,
+  floorIndex,
   selectedFixtureId,
   selectedRoomId,
   onSelectFixture,
@@ -55,9 +59,9 @@ export function HomeCanvas({
     <section className="canvas-shell" aria-label="Portego home canvas">
       <div className="canvas-toolbar">
         <div className="canvas-title">
-          <span className="floor-index">F.01</span>
+          <span className="floor-index">F.{String(floorIndex + 1).padStart(2, "0")}</span>
           <div>
-            <strong>Ground floor</strong>
+            <strong>{floorName}</strong>
             <span>Spatial model · revision {home.revision}</span>
           </div>
         </div>

@@ -272,6 +272,19 @@ a:focus-visible,
   color: var(--teal);
 }
 
+.floor-selector {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.floor-selector:hover,
+.floor-selector.is-selected {
+  color: var(--ink);
+  background: var(--paper-blue);
+}
+
 .tree-empty {
   margin: 7px 0 0 24px;
   color: var(--slate);

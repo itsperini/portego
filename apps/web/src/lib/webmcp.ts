@@ -88,7 +88,7 @@ export async function registerPortegoTools(
         name: "home.add_room",
         title: "Add a room",
         description:
-          "Add one rectangular room to the visible Portego canvas. The change is applied immediately and can be reset from the page.",
+          "Add one rectangular room to a floor of the Portego home. The change is applied immediately.",
         inputSchema: {
           type: "object",
           properties: {
@@ -97,6 +97,12 @@ export async function registerPortegoTools(
               minLength: 1,
               maxLength: 80,
               description: "The human-facing room name, such as Kitchen.",
+            },
+            floor: {
+              type: "string",
+              minLength: 1,
+              maxLength: 80,
+              description: "Floor name, such as Ground floor or Attic. Defaults to Ground floor.",
             },
             x: { type: "number", minimum: 0, maximum: 900 },
             y: { type: "number", minimum: 0, maximum: 620 },

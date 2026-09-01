@@ -373,6 +373,7 @@ export function PortegoWorkspace() {
   const [selectedFixtureId, setSelectedFixtureId] = useState<string>();
   const [selectedRoomId, setSelectedRoomId] = useState<string>();
   const [inspectorExpanded, setInspectorExpanded] = useState(false);
+  const [activeFloor, setActiveFloor] = useState("Ground floor");
   const [activity, setActivity] = useState("The home is ready for a conversational edit.");
   const [busy, setBusy] = useState(false);
 
@@ -420,6 +421,23 @@ export function PortegoWorkspace() {
   const webMcpStatus = useWebMcp(webMcpActions, onAgentActivity);
   const selectedFixture = home.fixtures.find((fixture) => fixture.id === selectedFixtureId);
   const selectedRoom = home.rooms.find((room) => room.id === selectedRoomId);
+  const floors = useMemo(
+    () => Array.from(new Set(["Ground floor", ...home.rooms.map((room) => room.floor)])),
+    [home.rooms],
+  );
+  const visibleRoomIds = useMemo(
+    () => new Set(home.rooms.filter((room) => room.floor === activeFloor).map((room) => room.id)),
+    [activeFloor, home.rooms],
+  );
+  const visibleHome = useMemo(
+    () => ({
+      ...home,
+      rooms: home.rooms.filter((room) => visibleRoomIds.has(room.id)),
+      fixtures: home.fixtures.filter((fixture) => visibleRoomIds.has(fixture.roomId)),
+      openings: home.openings.filter((opening) => visibleRoomIds.has(opening.roomId)),
+    }),
+    [home, visibleRoomIds],
+  );
 
   const selectFixture = useCallback((fixtureId?: string) => {
     setSelectedRoomId(undefined);
@@ -594,7 +612,7 @@ export function PortegoWorkspace() {
           <House size={15} aria-hidden="true" />
           <span>{home.name}</span>
           <ChevronRight size={13} aria-hidden="true" />
-          <strong>Ground floor</strong>
+          <strong>{activeFloor}</strong>
         </div>
         <div className="topbar-status">
           <span className={`status-chip tools-${webMcpStatus}`}>
@@ -616,14 +634,24 @@ export function PortegoWorkspace() {
               <strong>{home.rooms.length + home.fixtures.length}</strong>
             </div>
             <nav className="structure-tree" aria-label="Home structure">
-              <div className="tree-root">
-                <Layers3 size={15} />
-                <span>Ground floor</span>
-              </div>
-              {home.rooms.length === 0 ? (
+              {floors.map((floor) => (
+                <button
+                  className={`tree-root floor-selector ${activeFloor === floor ? "is-selected" : ""}`}
+                  type="button"
+                  key={floor}
+                  onClick={() => {
+                    setActiveFloor(floor);
+                    selectRoom(undefined);
+                  }}
+                >
+                  <Layers3 size={15} />
+                  <span>{floor}</span>
+                </button>
+              ))}
+              {visibleHome.rooms.length === 0 ? (
                 <p className="tree-empty">No rooms yet. The canvas is waiting for a description.</p>
               ) : (
-                home.rooms.map((room) => {
+                visibleHome.rooms.map((room) => {
                   const fixtures = home.fixtures.filter((fixture) => fixture.roomId === room.id);
                   return (
                     <div className="tree-room" key={room.id}>
@@ -674,7 +702,9 @@ export function PortegoWorkspace() {
         </aside>
 
         <HomeCanvas
-          home={home}
+          home={visibleHome}
+          floorName={activeFloor}
+          floorIndex={floors.indexOf(activeFloor)}
           selectedFixtureId={selectedFixtureId}
           selectedRoomId={selectedRoomId}
           onSelectFixture={(fixture) => selectFixture(fixture?.id)}

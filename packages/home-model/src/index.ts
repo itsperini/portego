@@ -18,6 +18,7 @@ export const positionSchema = z.object({
 export const roomSchema = z.object({
   id: z.string().min(1),
   label: z.string().trim().min(1).max(80),
+  floor: z.string().trim().min(1).max(80).default("Ground floor"),
   x: z.number().min(0).max(900),
   y: z.number().min(0).max(620),
   width: z.number().min(120).max(900),
@@ -96,6 +97,7 @@ export const homeDocumentSchema = z.object({
 
 export const addRoomInputSchema = z.object({
   label: z.string().trim().min(1).max(80),
+  floor: z.string().trim().min(1).max(80).default("Ground floor"),
   x: z.number().min(0).max(900).optional(),
   y: z.number().min(0).max(620).optional(),
   width: z.number().min(120).max(900).optional(),
@@ -348,6 +350,7 @@ export function addRoom(home: HomeDocument, rawInput: AddRoomInput): HomeDocumen
   const room: Room = {
     id: id("room"),
     label: input.label,
+    floor: input.floor,
     x: input.x ?? 72 + (index % 2) * 332,
     y: input.y ?? 76 + Math.floor(index / 2) * 248,
     width: input.width ?? 300,

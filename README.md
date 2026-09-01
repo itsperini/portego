@@ -96,6 +96,7 @@ enhancement, not a replacement for an accessible interface.
 The center canvas uses `react-konva` as an interaction and rendering layer over
 the canonical `HomeDocument`. It supports:
 
+- multiple named floors, with a floor selector and floor-specific rooms;
 - dragging rooms and fixtures with a 20-unit grid snap;
 - resizing rooms with eight handles;
 - keeping fixtures constrained to their room;
