@@ -7,7 +7,7 @@ import type {
   Room,
   UpdateRoomInput,
 } from "@portego/home-model";
-import { Bot, Lightbulb, Magnet, Plus, Redo2, Undo2 } from "lucide-react";
+import { Bot, ChevronRight, House, Lightbulb, Plus, Redo2, Undo2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const KonvaHomeCanvas = dynamic(
@@ -21,7 +21,6 @@ const KonvaHomeCanvas = dynamic(
 type HomeCanvasProps = {
   home: HomeDocument;
   floorName: string;
-  floorIndex: number;
   selectedFixtureId?: string;
   selectedRoomId?: string;
   onSelectFixture: (fixture?: Fixture) => void;
@@ -40,7 +39,6 @@ type HomeCanvasProps = {
 export function HomeCanvas({
   home,
   floorName,
-  floorIndex,
   selectedFixtureId,
   selectedRoomId,
   onSelectFixture,
@@ -57,31 +55,26 @@ export function HomeCanvas({
 }: HomeCanvasProps) {
   return (
     <section className="canvas-shell" aria-label="Portego home canvas">
-      <div className="canvas-toolbar">
-        <div className="canvas-title">
-          <span className="floor-index">F.{String(floorIndex + 1).padStart(2, "0")}</span>
-          <div>
-            <strong>{floorName}</strong>
-            <span>Spatial model · revision {home.revision}</span>
-          </div>
-        </div>
-        <div className="canvas-toolbar-actions">
-          <div className="history-controls" role="group" aria-label="Edit history">
-            <button type="button" onClick={onUndo} disabled={!canUndo || busy} aria-label="Undo">
-              <Undo2 size={14} />
-            </button>
-            <button type="button" onClick={onRedo} disabled={!canRedo || busy} aria-label="Redo">
-              <Redo2 size={14} />
-            </button>
-          </div>
-          <div className="canvas-tools-hint">
-            <Magnet aria-hidden="true" size={14} />
-            <span>Drag · snap 20 · resize rooms</span>
-          </div>
-        </div>
-      </div>
-
       <div className="canvas-stage">
+        <nav className="canvas-breadcrumb" aria-label={`Editing ${floorName} in ${home.name}`}>
+          <House size={14} aria-hidden="true" />
+          <span>{home.name}</span>
+          <ChevronRight size={12} aria-hidden="true" />
+          <strong>{floorName}</strong>
+        </nav>
+
+        <div
+          className="history-controls floating-history-controls"
+          role="group"
+          aria-label="Edit history"
+        >
+          <button type="button" onClick={onUndo} disabled={!canUndo || busy} aria-label="Undo">
+            <Undo2 size={14} />
+          </button>
+          <button type="button" onClick={onRedo} disabled={!canRedo || busy} aria-label="Redo">
+            <Redo2 size={14} />
+          </button>
+        </div>
         <KonvaHomeCanvas
           home={home}
           selectedFixtureId={selectedFixtureId}

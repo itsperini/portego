@@ -478,7 +478,7 @@ export async function registerPortegoTools(
         name: "device.set_state",
         title: "Control a fixture",
         description:
-          "Set power or brightness for one named fixture that is bound to a reachable device. This has an immediate simulated physical side effect in the walking skeleton.",
+          "Set power or brightness for one named fixture that is bound to a reachable device. This has an immediate simulated physical side effect.",
         inputSchema: {
           type: "object",
           properties: {
@@ -524,7 +524,7 @@ export async function registerPortegoTools(
         name: "home.reset_demo",
         title: "Reset the demo home",
         description:
-          "Remove all rooms, fixtures, and bindings from this Portego demo. This is destructive but affects only the temporary walking-skeleton home.",
+          "Remove all rooms, fixtures, and bindings from this Portego demo. This is destructive but affects only the temporary home.",
         inputSchema: {
           type: "object",
           properties: {},

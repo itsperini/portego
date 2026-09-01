@@ -8,20 +8,7 @@ import {
   type Room,
   type WallSide,
 } from "@portego/home-model";
-import {
-  ChevronRight,
-  CircleDot,
-  DoorOpen,
-  House,
-  Lightbulb,
-  PanelRightOpen,
-  Plus,
-  Trash2,
-  Unlink,
-  Wifi,
-  WifiOff,
-  X,
-} from "lucide-react";
+import { DoorOpen, Lightbulb, PanelRightOpen, Plus, Trash2, Unlink, X } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePortegoHome } from "../hooks/use-portego-home";
 import { useWebMcp } from "../hooks/use-webmcp";
@@ -373,7 +360,6 @@ function RoomCard({
 export function PortegoWorkspace() {
   const {
     home,
-    connectionMode,
     error,
     history,
     getHome,
@@ -442,7 +428,7 @@ export function PortegoWorkspace() {
     ],
   );
   const onAgentActivity = useCallback((message: string) => setActivity(message), []);
-  const webMcpStatus = useWebMcp(webMcpActions, onAgentActivity);
+  useWebMcp(webMcpActions, onAgentActivity);
   const selectedFixture = home.fixtures.find((fixture) => fixture.id === selectedFixtureId);
   const selectedRoom = home.rooms.find((room) => room.id === selectedRoomId);
   const floors = useMemo(
@@ -547,13 +533,6 @@ export function PortegoWorkspace() {
     [addFixture, addRoom, getHome, run, selectFixture],
   );
 
-  const toolStatusCopy = {
-    ready: "Site tools ready",
-    registering: "Registering tools",
-    unavailable: "Open in Codex for tools",
-    error: "Tools need attention",
-  }[webMcpStatus];
-
   const floatingCard = selectedFixture ? (
     <FixtureCard
       key={selectedFixture.id}
@@ -638,24 +617,10 @@ export function PortegoWorkspace() {
             <span />
           </span>
           <span className="brand-name">portego</span>
-          <span className="build-tag">walking skeleton</span>
         </a>
-        <div className="home-crumb">
-          <House size={15} aria-hidden="true" />
-          <span>{home.name}</span>
-          <ChevronRight size={13} aria-hidden="true" />
-          <strong>{activeFloor}</strong>
-        </div>
-        <div className="topbar-status">
-          <span className={`status-chip tools-${webMcpStatus}`}>
-            <CircleDot size={13} />
-            {toolStatusCopy}
-          </span>
-          <span className={`status-chip connection-${connectionMode}`}>
-            {connectionMode === "cloud" ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {connectionMode === "cloud" ? "Render path" : "Local demo"}
-          </span>
-        </div>
+        <button className="dashboard-button" type="button">
+          Dashboard
+        </button>
       </header>
 
       <div className={`workspace-grid ${inspectorExpanded ? "inspector-open" : ""}`}>
@@ -748,7 +713,6 @@ export function PortegoWorkspace() {
         <HomeCanvas
           home={visibleHome}
           floorName={activeFloor}
-          floorIndex={floors.indexOf(activeFloor)}
           selectedFixtureId={selectedFixtureId}
           selectedRoomId={selectedRoomId}
           onSelectFixture={(fixture) => selectFixture(fixture?.id)}

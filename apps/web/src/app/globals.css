@@ -63,7 +63,7 @@ a:focus-visible,
   position: relative;
   z-index: 10;
   display: grid;
-  grid-template-columns: 240px minmax(260px, 1fr) auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   min-width: 0;
   border-bottom: 1px solid var(--line);
@@ -78,7 +78,6 @@ a:focus-visible,
   padding: 0 18px;
   color: var(--ink-strong);
   text-decoration: none;
-  border-right: 1px solid var(--line);
 }
 
 .brand-mark {
@@ -112,81 +111,23 @@ a:focus-visible,
   letter-spacing: -0.055em;
 }
 
-.build-tag {
-  margin-left: auto;
-  color: var(--slate);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
-
-.home-crumb {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 20px;
-  color: var(--slate);
-  font-size: 12px;
-}
-
-.home-crumb span,
-.home-crumb strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-crumb strong {
+.dashboard-button {
+  min-height: 34px;
+  margin-right: 16px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
   color: var(--ink);
-  font-weight: 650;
-}
-
-.topbar-status {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 30px;
-  padding: 0 11px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--slate);
-  background: #fff;
+  background: white;
   font-size: 10px;
-  font-weight: 680;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.tools-ready {
-  color: #1c6865;
-  border-color: #b8dcd6;
-  background: #eaf7f4;
-}
-
-.tools-ready svg {
+.dashboard-button:hover {
   color: var(--teal);
-}
-
-.tools-error {
-  color: var(--danger);
-  border-color: #e2bbb7;
-  background: #fff1ef;
-}
-
-.connection-cloud svg {
-  color: var(--teal);
+  border-color: var(--teal);
+  background: var(--paper-blue);
 }
 
 .workspace-grid {
@@ -487,73 +428,13 @@ a:focus-visible,
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: 58px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   background: var(--paper-blue);
 }
 
-.canvas-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 18px;
-  border-bottom: 1px solid var(--line);
-  background: var(--paper);
-}
-
-.canvas-title {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.floor-index {
-  height: 29px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 8px;
-  border: 1px solid var(--ink);
-  border-radius: 4px;
-  color: var(--ink-strong);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 650;
-}
-
-.canvas-title div {
-  display: grid;
-  gap: 2px;
-}
-
-.canvas-title strong {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.canvas-title div span {
-  color: var(--slate);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.035em;
-}
-
-.canvas-tools-hint {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--teal);
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.canvas-toolbar-actions,
 .history-controls {
   display: flex;
   align-items: center;
-}
-
-.canvas-toolbar-actions {
-  gap: 14px;
 }
 
 .history-controls {
@@ -585,6 +466,49 @@ a:focus-visible,
 .history-controls button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
+}
+
+.floating-history-controls {
+  position: absolute;
+  top: 56px;
+  right: 14px;
+  z-index: 5;
+  background: rgba(248, 251, 250, 0.92);
+  box-shadow: 0 5px 16px rgba(11, 33, 51, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.canvas-breadcrumb {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  z-index: 5;
+  min-width: 0;
+  max-width: calc(100% - 210px);
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid rgba(159, 180, 190, 0.85);
+  border-radius: 5px;
+  color: var(--slate);
+  background: rgba(248, 251, 250, 0.92);
+  box-shadow: 0 5px 16px rgba(11, 33, 51, 0.08);
+  font-size: 10px;
+  backdrop-filter: blur(8px);
+}
+
+.canvas-breadcrumb span,
+.canvas-breadcrumb strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-breadcrumb strong {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .canvas-stage {
@@ -664,23 +588,6 @@ a:focus-visible,
   font-family: var(--font-mono);
   font-size: 8px;
   text-align: center;
-}
-
-.canvas-gesture-hint {
-  position: absolute;
-  bottom: 15px;
-  left: 18px;
-  z-index: 3;
-  padding: 6px 8px;
-  color: var(--slate);
-  border: 1px solid rgba(159, 180, 190, 0.62);
-  border-radius: 3px;
-  background: rgba(248, 251, 250, 0.82);
-  font-family: var(--font-mono);
-  font-size: 7px;
-  letter-spacing: 0.02em;
-  pointer-events: none;
-  backdrop-filter: blur(6px);
 }
 
 .canvas-accessible-actions {
@@ -1394,10 +1301,6 @@ a:focus-visible,
 }
 
 @media (max-width: 1120px) {
-  .topbar {
-    grid-template-columns: 210px minmax(180px, 1fr) auto;
-  }
-
   .workspace-grid {
     grid-template-columns: 210px minmax(390px, 1fr) 52px;
   }
@@ -1408,12 +1311,6 @@ a:focus-visible,
 
   .workspace-footer {
     grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .status-chip.connection-cloud,
-  .status-chip.connection-local,
-  .status-chip.connection-connecting {
-    display: none;
   }
 
   .left-rail .rail-section {
@@ -1430,18 +1327,6 @@ a:focus-visible,
   .topbar {
     grid-template-columns: 1fr auto;
     min-height: 62px;
-  }
-
-  .brand {
-    border-right: 0;
-  }
-
-  .home-crumb {
-    display: none;
-  }
-
-  .topbar-status {
-    padding-right: 10px;
   }
 
   .workspace-grid {
@@ -1479,27 +1364,8 @@ a:focus-visible,
     padding-left: 12px;
   }
 
-  .build-tag,
-  .status-chip.tools-unavailable,
-  .status-chip.tools-registering {
-    display: none;
-  }
-
-  .status-chip {
-    padding: 0 9px;
-    font-size: 9px;
-  }
-
   .canvas-shell {
     min-height: 540px;
-  }
-
-  .canvas-toolbar {
-    padding: 0 12px;
-  }
-
-  .canvas-tools-hint span {
-    display: none;
   }
 
   .home-canvas {
@@ -1508,13 +1374,6 @@ a:focus-visible,
 
   .konva-host {
     min-height: 480px;
-  }
-
-  .canvas-gesture-hint {
-    right: 12px;
-    bottom: 12px;
-    left: 12px;
-    text-align: center;
   }
 
   .canvas-empty {

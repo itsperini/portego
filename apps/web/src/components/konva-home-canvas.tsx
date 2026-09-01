@@ -615,10 +615,6 @@ export function KonvaHomeCanvas({
           <Maximize2 size={13} />
         </button>
       </div>
-
-      <div className="canvas-gesture-hint" aria-hidden="true">
-        Drag to place · 20-unit snap · wheel to zoom · blank space to pan
-      </div>
     </div>
   );
 }
