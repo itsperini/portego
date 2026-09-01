@@ -13,7 +13,6 @@ import {
   CircleDot,
   DoorOpen,
   House,
-  Layers3,
   Lightbulb,
   PanelRightOpen,
   Plus,
@@ -23,14 +22,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import {
-  type CSSProperties,
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePortegoHome } from "../hooks/use-portego-home";
 import { useWebMcp } from "../hooks/use-webmcp";
 import { HomeCanvas } from "./home-canvas";
@@ -50,13 +42,12 @@ type FixtureCardProps = {
 type FloorMiniMapProps = {
   home: HomeDocument;
   floor: string;
-  labels?: boolean;
 };
 
-function FloorMiniMap({ home, floor, labels = false }: FloorMiniMapProps) {
+function FloorMiniMap({ home, floor }: FloorMiniMapProps) {
   const rooms = home.rooms.filter((room) => room.floor === floor);
   return (
-    <span className={`floor-mini-map ${labels ? "with-labels" : ""}`} aria-hidden="true">
+    <span className="floor-mini-map" aria-hidden="true">
       {rooms.map((room) => (
         <i
           key={room.id}
@@ -67,9 +58,7 @@ function FloorMiniMap({ home, floor, labels = false }: FloorMiniMapProps) {
             width: `${room.width / 10}%`,
             height: `${room.height / 6.5}%`,
           }}
-        >
-          {labels ? room.label : null}
-        </i>
+        ></i>
       ))}
     </span>
   );
@@ -409,7 +398,6 @@ export function PortegoWorkspace() {
   const [selectedRoomId, setSelectedRoomId] = useState<string>();
   const [inspectorExpanded, setInspectorExpanded] = useState(false);
   const [activeFloor, setActiveFloor] = useState("Ground floor");
-  const [floorOverviewOpen, setFloorOverviewOpen] = useState(false);
   const [activity, setActivity] = useState("The home is ready for a conversational edit.");
   const [busy, setBusy] = useState(false);
 
@@ -475,15 +463,6 @@ export function PortegoWorkspace() {
     [home, visibleRoomIds],
   );
 
-  useEffect(() => {
-    if (!floorOverviewOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFloorOverviewOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [floorOverviewOpen]);
-
   const selectFixture = useCallback((fixtureId?: string) => {
     setSelectedRoomId(undefined);
     setSelectedFixtureId(fixtureId);
@@ -500,7 +479,6 @@ export function PortegoWorkspace() {
     (floor: string) => {
       setActiveFloor(floor);
       selectRoom(undefined);
-      setFloorOverviewOpen(false);
     },
     [selectRoom],
   );
@@ -669,15 +647,6 @@ export function PortegoWorkspace() {
           <strong>{activeFloor}</strong>
         </div>
         <div className="topbar-status">
-          <button
-            className="floor-overview-trigger"
-            type="button"
-            onClick={() => setFloorOverviewOpen(true)}
-            aria-label="View all floors"
-          >
-            <Layers3 size={15} />
-            <span>All floors</span>
-          </button>
           <span className={`status-chip tools-${webMcpStatus}`}>
             <CircleDot size={13} />
             {toolStatusCopy}
@@ -852,45 +821,6 @@ export function PortegoWorkspace() {
           )}
         </aside>
       </div>
-
-      {floorOverviewOpen ? (
-        <div className="floor-overview" role="dialog" aria-modal="true" aria-label="All floors">
-          <button
-            className="floor-overview-backdrop"
-            type="button"
-            onClick={() => setFloorOverviewOpen(false)}
-            aria-label="Close all floors view"
-          />
-          <header className="floor-overview-header">
-            <div>
-              <span className="eyebrow">Spatial index</span>
-              <strong>Choose a floor</strong>
-            </div>
-            <button type="button" onClick={() => setFloorOverviewOpen(false)} aria-label="Close">
-              <X size={17} />
-            </button>
-          </header>
-          <div className="floor-stack" style={{ "--floor-count": floors.length } as CSSProperties}>
-            {floors.map((floor, index) => (
-              <button
-                className={`floor-sheet ${floor === activeFloor ? "is-active" : ""}`}
-                type="button"
-                key={floor}
-                onClick={() => activateFloor(floor)}
-                style={{ "--floor-offset": `${index * 108}px` } as CSSProperties}
-              >
-                <span className="floor-sheet-label">
-                  <small>F.{String(index + 1).padStart(2, "0")}</small>
-                  <strong>{floor}</strong>
-                  {floor === activeFloor ? <em>Active</em> : null}
-                </span>
-                <FloorMiniMap home={home} floor={floor} labels />
-              </button>
-            ))}
-          </div>
-          <p className="floor-overview-hint">Hover to inspect · click a sheet to enter</p>
-        </div>
-      ) : null}
 
       <footer className="workspace-footer">
         <span>{busy ? "Applying change…" : (error ?? activity)}</span>
