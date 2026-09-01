@@ -8,10 +8,14 @@ import {
   type DeviceEndpoint,
   type DeviceState,
   type HomeDocument,
+  type MoveFixtureInput,
+  moveFixture,
   resolveFixture,
   type SetFixtureStateInput,
   setDesiredFixtureState,
   setGatewayStatus,
+  type UpdateRoomInput,
+  updateRoomGeometry,
   upsertEndpoints,
 } from "@portego/home-model";
 
@@ -49,6 +53,16 @@ export class PortegoService {
 
   createFixture(input: AddFixtureInput): HomeDocument {
     this.#home = addFixture(this.#home, input);
+    return this.snapshot();
+  }
+
+  updateRoom(input: UpdateRoomInput): HomeDocument {
+    this.#home = updateRoomGeometry(this.#home, input);
+    return this.snapshot();
+  }
+
+  moveFixture(input: MoveFixtureInput): HomeDocument {
+    this.#home = moveFixture(this.#home, input);
     return this.snapshot();
   }
 

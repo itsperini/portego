@@ -29,6 +29,8 @@ export function PortegoWorkspace() {
     getHome,
     addRoom,
     addFixture,
+    updateRoom,
+    moveFixture,
     setFixtureState,
     discover,
     reset,
@@ -38,8 +40,8 @@ export function PortegoWorkspace() {
   const [busy, setBusy] = useState(false);
 
   const webMcpActions = useMemo(
-    () => ({ getHome, addRoom, addFixture, setFixtureState, reset }),
-    [getHome, addRoom, addFixture, setFixtureState, reset],
+    () => ({ getHome, addRoom, updateRoom, addFixture, moveFixture, setFixtureState, reset }),
+    [getHome, addRoom, updateRoom, addFixture, moveFixture, setFixtureState, reset],
   );
   const onAgentActivity = useCallback((message: string) => setActivity(message), []);
   const webMcpStatus = useWebMcp(webMcpActions, onAgentActivity);
@@ -294,7 +296,21 @@ export function PortegoWorkspace() {
         <HomeCanvas
           home={home}
           selectedFixtureId={selectedFixtureId}
-          onSelectFixture={(fixture) => setSelectedFixtureId(fixture.id)}
+          onSelectFixture={(fixture) => setSelectedFixtureId(fixture?.id)}
+          onUpdateRoom={(input) =>
+            void run(async () => {
+              const next = await updateRoom(input);
+              const room = next.rooms.find((candidate) => candidate.id === input.roomId);
+              setActivity(`${room?.label ?? "Room"} snapped to the drafting grid.`);
+            })
+          }
+          onMoveFixture={(input) =>
+            void run(async () => {
+              const next = await moveFixture(input);
+              const fixture = next.fixtures.find((candidate) => candidate.id === input.fixtureId);
+              setActivity(`${fixture?.label ?? "Fixture"} moved inside its room.`);
+            })
+          }
           onToggleFixture={(fixture) => void toggleFixture(fixture)}
           onBuildDemo={() => void buildDemo()}
         />

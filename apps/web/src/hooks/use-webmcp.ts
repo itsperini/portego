@@ -23,7 +23,9 @@ export function useWebMcp(
       {
         getHome: () => actionsRef.current.getHome(),
         addRoom: (input) => actionsRef.current.addRoom(input),
+        updateRoom: (input) => actionsRef.current.updateRoom(input),
         addFixture: (input) => actionsRef.current.addFixture(input),
+        moveFixture: (input) => actionsRef.current.moveFixture(input),
         setFixtureState: (input) => actionsRef.current.setFixtureState(input),
         reset: () => actionsRef.current.reset(),
       },

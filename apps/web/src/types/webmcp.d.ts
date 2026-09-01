@@ -2,6 +2,7 @@ type WebMcpJsonSchema = {
   type: "object";
   properties?: Record<string, unknown>;
   required?: string[];
+  anyOf?: Array<{ required: string[] }>;
   additionalProperties?: boolean;
 };
 

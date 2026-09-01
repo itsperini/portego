@@ -16,7 +16,7 @@ walking skeleton is deliberately small but complete:
 ## Monorepo
 
     apps/
-      web/                 Next.js canvas and imperative WebMCP tools
+      web/                 Next.js + Konva spatial editor and WebMCP tools
       server/              HTTP API, remote MCP server, gateway relay
     gateway/
       agent/               Linux gateway runtime and reconnect loop
@@ -67,16 +67,33 @@ Open the canvas in the Codex built-in browser and ask:
 
 > Create a kitchen, then add a ceiling light and turn it on at 40 percent.
 
-The top-level page registers five imperative site tools:
+The top-level page registers seven imperative site tools:
 
 - home.get_document
 - home.add_room
+- home.update_room
 - home.add_fixture
+- home.move_fixture
 - device.set_state
 - home.reset_demo
 
 The same actions are available through visible controls. WebMCP is a progressive
 enhancement, not a replacement for an accessible interface.
+
+## Edit the floor plan
+
+The center canvas uses `react-konva` as an interaction and rendering layer over
+the canonical `HomeDocument`. It supports:
+
+- dragging rooms and fixtures with a 20-unit grid snap;
+- resizing rooms with eight handles;
+- keeping fixtures constrained to their room;
+- pointer-centered wheel zoom and blank-space panning;
+- zoom controls and fit-to-home;
+- semantic room and fixture updates through the API and WebMCP.
+
+Portego stores room and fixture geometry, not serialized Konva nodes. Manual,
+API, and conversational edits therefore produce the same validated model.
 
 ## Check the repository
 

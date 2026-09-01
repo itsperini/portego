@@ -8,8 +8,12 @@ import {
   applyReportedState,
   createDemoHome,
   type HomeDocument,
+  type MoveFixtureInput,
+  moveFixture as moveFixtureLocally,
   type SetFixtureStateInput,
   setDesiredFixtureState,
+  type UpdateRoomInput,
+  updateRoomGeometry as updateRoomLocally,
 } from "@portego/home-model";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -116,6 +120,70 @@ export function usePortegoHome() {
     [connectionMode, updateHome],
   );
 
+  const updateRoom = useCallback(
+    async (input: UpdateRoomInput) => {
+      const roomId =
+        input.roomId ??
+        homeRef.current.rooms.find(
+          (room) => room.label.toLowerCase() === input.roomLabel?.toLowerCase(),
+        )?.id;
+      if (!roomId) {
+        throw new Error("A room id is required for direct canvas editing.");
+      }
+      try {
+        const next = await request<HomeDocument>(`/api/rooms/${encodeURIComponent(roomId)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ ...input, roomId }),
+        });
+        setConnectionMode("cloud");
+        setError(null);
+        return updateHome(next);
+      } catch (requestError) {
+        if (connectionMode === "cloud") {
+          setError(
+            requestError instanceof Error ? requestError.message : "Could not update the room.",
+          );
+          throw requestError;
+        }
+        setConnectionMode("local");
+        return updateHome(updateRoomLocally(homeRef.current, { ...input, roomId }));
+      }
+    },
+    [connectionMode, updateHome],
+  );
+
+  const moveFixture = useCallback(
+    async (input: MoveFixtureInput) => {
+      const fixtureId =
+        input.fixtureId ??
+        homeRef.current.fixtures.find(
+          (fixture) => fixture.label.toLowerCase() === input.fixtureLabel?.toLowerCase(),
+        )?.id;
+      if (!fixtureId) {
+        throw new Error("A fixture id is required for direct canvas editing.");
+      }
+      try {
+        const next = await request<HomeDocument>(`/api/fixtures/${encodeURIComponent(fixtureId)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ ...input, fixtureId }),
+        });
+        setConnectionMode("cloud");
+        setError(null);
+        return updateHome(next);
+      } catch (requestError) {
+        if (connectionMode === "cloud") {
+          setError(
+            requestError instanceof Error ? requestError.message : "Could not move the fixture.",
+          );
+          throw requestError;
+        }
+        setConnectionMode("local");
+        return updateHome(moveFixtureLocally(homeRef.current, { ...input, fixtureId }));
+      }
+    },
+    [connectionMode, updateHome],
+  );
+
   const setFixtureState = useCallback(
     async (input: SetFixtureStateInput) => {
       try {
@@ -170,6 +238,8 @@ export function usePortegoHome() {
     getHome: () => homeRef.current,
     addRoom,
     addFixture,
+    updateRoom,
+    moveFixture,
     setFixtureState,
     discover,
     reset,

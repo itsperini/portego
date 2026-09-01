@@ -2,13 +2,17 @@ import type {
   AddFixtureInput,
   AddRoomInput,
   HomeDocument,
+  MoveFixtureInput,
   SetFixtureStateInput,
+  UpdateRoomInput,
 } from "@portego/home-model";
 
 export type WebMcpActions = {
   getHome: () => HomeDocument;
   addRoom: (input: AddRoomInput) => Promise<HomeDocument>;
+  updateRoom: (input: UpdateRoomInput) => Promise<HomeDocument>;
   addFixture: (input: AddFixtureInput) => Promise<HomeDocument>;
+  moveFixture: (input: MoveFixtureInput) => Promise<HomeDocument>;
   setFixtureState: (input: SetFixtureStateInput) => Promise<HomeDocument>;
   reset: () => Promise<HomeDocument>;
 };
@@ -100,6 +104,52 @@ export async function registerPortegoTools(
 
     await modelContext.registerTool(
       {
+        name: "home.update_room",
+        title: "Move or resize a room",
+        description:
+          "Move or resize one named room on the visible Portego canvas. Coordinates use the 1000 by 650 floor-plan space and changes snap to the editor grid when initiated by a person.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            roomLabel: {
+              type: "string",
+              minLength: 1,
+              maxLength: 80,
+              description: "Exact visible room name.",
+            },
+            x: { type: "number", minimum: 0, maximum: 900 },
+            y: { type: "number", minimum: 0, maximum: 620 },
+            width: { type: "number", minimum: 120, maximum: 900 },
+            height: { type: "number", minimum: 100, maximum: 620 },
+          },
+          required: ["roomLabel"],
+          anyOf: [
+            { required: ["x"] },
+            { required: ["y"] },
+            { required: ["width"] },
+            { required: ["height"] },
+          ],
+          additionalProperties: false,
+        },
+        execute: async (input) => {
+          const home = await actions.updateRoom(input as UpdateRoomInput);
+          const room = home.rooms.find(
+            (item) => item.label.toLowerCase() === String(input.roomLabel).toLowerCase(),
+          );
+          onActivity?.(`Codex updated ${room?.label ?? "a room"}`);
+          return {
+            changed: true,
+            room,
+            revision: home.revision,
+            verification: "The room geometry is now visible on the canvas.",
+          };
+        },
+      },
+      options,
+    );
+
+    await modelContext.registerTool(
+      {
         name: "home.add_fixture",
         title: "Add a fixture",
         description:
@@ -144,6 +194,44 @@ export async function registerPortegoTools(
             verification: binding
               ? "The fixture is visible and bound to a simulated endpoint."
               : "The fixture is visible but is not yet bound.",
+          };
+        },
+      },
+      options,
+    );
+
+    await modelContext.registerTool(
+      {
+        name: "home.move_fixture",
+        title: "Move a fixture",
+        description:
+          "Move one named fixture within its room on the visible Portego canvas. Coordinates use the 1000 by 650 floor-plan space.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            fixtureLabel: {
+              type: "string",
+              minLength: 1,
+              maxLength: 80,
+              description: "Exact visible fixture name.",
+            },
+            x: { type: "number", minimum: 0, maximum: 1000 },
+            y: { type: "number", minimum: 0, maximum: 650 },
+          },
+          required: ["fixtureLabel", "x", "y"],
+          additionalProperties: false,
+        },
+        execute: async (input) => {
+          const home = await actions.moveFixture(input as MoveFixtureInput);
+          const fixture = home.fixtures.find(
+            (item) => item.label.toLowerCase() === String(input.fixtureLabel).toLowerCase(),
+          );
+          onActivity?.(`Codex moved ${fixture?.label ?? "a fixture"}`);
+          return {
+            changed: true,
+            fixture,
+            revision: home.revision,
+            verification: "The fixture position is now visible on the canvas.",
           };
         },
       },

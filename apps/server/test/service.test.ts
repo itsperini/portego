@@ -24,5 +24,18 @@ describe("PortegoService", () => {
       on: true,
       brightness: 40,
     });
+
+    const room = result.home.rooms[0];
+    const fixture = result.home.fixtures[0];
+    expect(room).toBeDefined();
+    expect(fixture).toBeDefined();
+    if (!room || !fixture) {
+      return;
+    }
+
+    service.updateRoom({ roomId: room.id, x: 240, y: 160, width: 420, height: 300 });
+    const moved = service.moveFixture({ fixtureId: fixture.id, x: 360, y: 260 });
+    expect(moved.rooms[0]).toMatchObject({ x: 240, y: 160, width: 420, height: 300 });
+    expect(moved.fixtures[0]?.position).toEqual({ x: 360, y: 260 });
   });
 });

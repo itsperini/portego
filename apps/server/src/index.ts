@@ -4,7 +4,9 @@ import { createMcpHandler } from "@modelcontextprotocol/server";
 import {
   addFixtureInputSchema,
   addRoomInputSchema,
+  moveFixtureInputSchema,
   setFixtureStateInputSchema,
+  updateRoomInputSchema,
 } from "@portego/home-model";
 import { WebSocketServer } from "ws";
 import { GatewayBroker } from "./gateway-broker.js";
@@ -20,7 +22,7 @@ const mcpHandler = toNodeHandler(createMcpHandler(() => createPortegoMcpServer(s
 function applyCors(response: ServerResponse): void {
   response.setHeader("Access-Control-Allow-Origin", webOrigin);
   response.setHeader("Access-Control-Allow-Headers", "content-type, mcp-protocol-version");
-  response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
   response.setHeader("Vary", "Origin");
 }
 
@@ -85,6 +87,38 @@ const httpServer = createServer(async (request, response) => {
         response,
         201,
         service.createFixture(addFixtureInputSchema.parse(await readJson(request))),
+      );
+      return;
+    }
+
+    const roomMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);
+    if (request.method === "PATCH" && roomMatch?.[1]) {
+      const body = await readJson(request);
+      sendJson(
+        response,
+        200,
+        service.updateRoom(
+          updateRoomInputSchema.parse({
+            ...(typeof body === "object" && body !== null ? body : {}),
+            roomId: decodeURIComponent(roomMatch[1]),
+          }),
+        ),
+      );
+      return;
+    }
+
+    const fixtureMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)$/);
+    if (request.method === "PATCH" && fixtureMatch?.[1]) {
+      const body = await readJson(request);
+      sendJson(
+        response,
+        200,
+        service.moveFixture(
+          moveFixtureInputSchema.parse({
+            ...(typeof body === "object" && body !== null ? body : {}),
+            fixtureId: decodeURIComponent(fixtureMatch[1]),
+          }),
+        ),
       );
       return;
     }

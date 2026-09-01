@@ -5,7 +5,9 @@ import {
   applyReportedState,
   createDemoHome,
   endpointForFixture,
+  moveFixture,
   setDesiredFixtureState,
+  updateRoomGeometry,
 } from "../src/index.js";
 
 describe("home model", () => {
@@ -43,5 +45,27 @@ describe("home model", () => {
 
     home = applyReportedState(desired.home, desired.endpoint.id, desired.requestedState);
     expect(home.endpoints[0]?.reportedState).toMatchObject({ on: true, brightness: 40 });
+  });
+
+  it("keeps geometry semantic when rooms and fixtures move", () => {
+    let home = createDemoHome();
+    home = addRoom(home, { label: "Kitchen", x: 100, y: 100, width: 300, height: 200 });
+    home = addFixture(home, {
+      roomLabel: "Kitchen",
+      label: "Kitchen ceiling",
+      type: "light",
+    });
+
+    home = updateRoomGeometry(home, {
+      roomLabel: "Kitchen",
+      x: 200,
+      y: 160,
+      width: 400,
+      height: 240,
+    });
+    expect(home.fixtures[0]?.position).toEqual({ x: 400, y: 280 });
+
+    home = moveFixture(home, { fixtureLabel: "Kitchen ceiling", x: 999, y: 0 });
+    expect(home.fixtures[0]?.position).toEqual({ x: 572, y: 188 });
   });
 });

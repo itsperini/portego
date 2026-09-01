@@ -3,7 +3,9 @@ import {
   addRoom,
   applyReportedState,
   createDemoHome,
+  moveFixture,
   setDesiredFixtureState,
+  updateRoomGeometry,
 } from "@portego/home-model";
 import { describe, expect, it, vi } from "vitest";
 import { registerPortegoTools } from "./webmcp";
@@ -24,8 +26,16 @@ describe("Portego WebMCP tools", () => {
         home = addRoom(home, input);
         return home;
       },
+      updateRoom: async (input) => {
+        home = updateRoomGeometry(home, input);
+        return home;
+      },
       addFixture: async (input) => {
         home = addFixture(home, input);
+        return home;
+      },
+      moveFixture: async (input) => {
+        home = moveFixture(home, input);
         return home;
       },
       setFixtureState: async (input) => {
@@ -40,6 +50,7 @@ describe("Portego WebMCP tools", () => {
     });
 
     expect(registration.status).toBe("ready");
+    expect(tools.size).toBe(7);
     await tools
       .get("home.add_room")
       ?.execute({ label: "Kitchen" }, { signal: new AbortController().signal });
@@ -47,6 +58,18 @@ describe("Portego WebMCP tools", () => {
       .get("home.add_fixture")
       ?.execute(
         { roomLabel: "Kitchen", label: "Kitchen ceiling", type: "light" },
+        { signal: new AbortController().signal },
+      );
+    await tools
+      .get("home.update_room")
+      ?.execute(
+        { roomLabel: "Kitchen", x: 200, y: 140, width: 460, height: 320 },
+        { signal: new AbortController().signal },
+      );
+    await tools
+      .get("home.move_fixture")
+      ?.execute(
+        { fixtureLabel: "Kitchen ceiling", x: 320, y: 240 },
         { signal: new AbortController().signal },
       );
     await tools
@@ -58,6 +81,8 @@ describe("Portego WebMCP tools", () => {
 
     expect(home.rooms).toHaveLength(1);
     expect(home.fixtures).toHaveLength(1);
+    expect(home.rooms[0]).toMatchObject({ x: 200, y: 140, width: 460, height: 320 });
+    expect(home.fixtures[0]?.position).toEqual({ x: 320, y: 240 });
     expect(home.endpoints[0]?.reportedState).toMatchObject({ on: true, brightness: 40 });
   });
 
@@ -87,7 +112,9 @@ describe("Portego WebMCP tools", () => {
       {
         getHome: () => createDemoHome(),
         addRoom: async () => createDemoHome(),
+        updateRoom: async () => createDemoHome(),
         addFixture: async () => createDemoHome(),
+        moveFixture: async () => createDemoHome(),
         setFixtureState: async () => createDemoHome(),
         reset: async () => createDemoHome(),
       },

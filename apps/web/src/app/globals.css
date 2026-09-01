@@ -513,6 +513,135 @@ a:focus-visible,
   background: #e7eff2;
 }
 
+.konva-host {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.konva-host canvas {
+  display: block;
+}
+
+.canvas-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--slate);
+  background: var(--paper-blue);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.canvas-editor-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(159, 180, 190, 0.85);
+  border-radius: 5px;
+  background: rgba(248, 251, 250, 0.92);
+  box-shadow: 0 5px 16px rgba(11, 33, 51, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.canvas-editor-controls button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid var(--line);
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+}
+
+.canvas-editor-controls button:last-child {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.canvas-editor-controls button:hover,
+.canvas-editor-controls button:focus-visible {
+  color: var(--teal);
+  background: var(--paper-blue);
+  outline: none;
+}
+
+.canvas-editor-controls span {
+  min-width: 50px;
+  color: var(--slate);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-align: center;
+}
+
+.canvas-gesture-hint {
+  position: absolute;
+  bottom: 15px;
+  left: 18px;
+  z-index: 3;
+  padding: 6px 8px;
+  color: var(--slate);
+  border: 1px solid rgba(159, 180, 190, 0.62);
+  border-radius: 3px;
+  background: rgba(248, 251, 250, 0.82);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+.canvas-accessible-actions {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.canvas-accessible-actions:focus-within {
+  top: 60px;
+  left: 14px;
+  z-index: 6;
+  width: auto;
+  height: auto;
+  display: grid;
+  gap: 6px;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  padding: 10px;
+  border: 1px solid var(--teal);
+  border-radius: 4px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  white-space: normal;
+}
+
+.canvas-accessible-actions button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--paper);
+  font-size: 10px;
+}
+
 .home-canvas {
   width: 100%;
   height: 100%;
@@ -1150,6 +1279,10 @@ a:focus-visible,
     min-height: 570px;
   }
 
+  .konva-host {
+    min-height: 570px;
+  }
+
   .right-rail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: visible;
@@ -1197,6 +1330,17 @@ a:focus-visible,
 
   .home-canvas {
     min-height: 480px;
+  }
+
+  .konva-host {
+    min-height: 480px;
+  }
+
+  .canvas-gesture-hint {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    text-align: center;
   }
 
   .canvas-empty {
