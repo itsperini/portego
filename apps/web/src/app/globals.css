@@ -891,59 +891,6 @@ a:focus-visible,
   border-width: 0 1px 1px;
 }
 
-.gateway-summary {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 8px;
-  align-items: center;
-  gap: 9px;
-  margin-top: auto;
-}
-
-.gateway-summary-icon {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--teal);
-  background: var(--paper-blue);
-}
-
-.gateway-summary > div:nth-child(2) {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.gateway-summary span {
-  color: var(--slate);
-  font-size: 8px;
-}
-
-.gateway-summary strong {
-  overflow: hidden;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gateway-summary > i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--line-strong);
-}
-
-.gateway-summary > i.state-online {
-  background: var(--teal);
-  box-shadow: 0 0 0 3px rgba(35, 125, 120, 0.12);
-}
-
-.gateway-summary > i.state-connecting {
-  background: var(--signal);
-}
-
 .floating-object-card {
   position: absolute;
   top: 62px;

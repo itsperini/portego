@@ -15,7 +15,6 @@ import {
   House,
   Layers3,
   Lightbulb,
-  Link2,
   Plus,
   Trash2,
   Unlink,
@@ -664,17 +663,6 @@ export function PortegoWorkspace() {
               <Lightbulb size={15} />
               Add a light
             </button>
-          </section>
-
-          <section className="rail-section gateway-summary">
-            <div className="gateway-summary-icon">
-              <Link2 size={15} />
-            </div>
-            <div>
-              <span>Home gateway</span>
-              <strong>{home.gateway.label}</strong>
-            </div>
-            <i className={`state-${home.gateway.status}`} />
           </section>
         </aside>
 
