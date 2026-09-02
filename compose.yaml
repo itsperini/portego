@@ -27,6 +27,8 @@ services:
       PORTEGO_WEB_URL: http://localhost:3100
       PORTEGO_COOKIE_SECURE: "false"
       PORTEGO_GATEWAY_JWT_SECRET: local-development-gateway-secret-change-me
+      PORTEGO_CLOUDFLARE_RELAY_URL: ${PORTEGO_CLOUDFLARE_RELAY_URL:-}
+      PORTEGO_CLOUDFLARE_RELAY_SECRET: ${PORTEGO_CLOUDFLARE_RELAY_SECRET:-}
       PORTEGO_AUTO_CREATE_TABLES: "false"
     depends_on:
       postgres:

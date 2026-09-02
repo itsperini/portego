@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "portego-gateway-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-02",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GATEWAY_RELAY",
+        "class_name": "GatewayRelay"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GatewayRelay"]
+    }
+  ],
+  "vars": {
+    "PORTEGO_API_CALLBACK_URL": "https://api.tryportego.com"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

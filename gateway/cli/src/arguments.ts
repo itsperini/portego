@@ -33,6 +33,8 @@ export interface SetupArguments extends OutputArguments {
   command: "setup";
   apiUrl: string;
   gatewayName: string;
+  transport: "direct" | "cloudflare";
+  relayUrl?: string;
 }
 
 export type CliArguments =
@@ -88,6 +90,8 @@ export function parseArguments(rawArguments: string[]): CliArguments {
       command: "setup",
       apiUrl: process.env.PORTEGO_API_URL ?? "http://localhost:4000",
       gatewayName: process.env.PORTEGO_GATEWAY_NAME ?? "Portego home gateway",
+      transport: process.env.PORTEGO_GATEWAY_TRANSPORT === "cloudflare" ? "cloudflare" : "direct",
+      relayUrl: process.env.PORTEGO_CLOUDFLARE_RELAY_URL,
       json: false,
     };
     while (args.length > 0) {
@@ -95,9 +99,19 @@ export function parseArguments(rawArguments: string[]): CliArguments {
       if (flag === "--") continue;
       if (flag === "--api") parsed.apiUrl = requireValue(args, flag);
       else if (flag === "--name") parsed.gatewayName = requireValue(args, flag);
+      else if (flag === "--transport") {
+        const transport = requireValue(args, flag);
+        if (transport !== "direct" && transport !== "cloudflare") {
+          throw new Error("--transport must be direct or cloudflare.");
+        }
+        parsed.transport = transport;
+      } else if (flag === "--relay") parsed.relayUrl = requireValue(args, flag);
       else if (flag === "--json") parsed.json = true;
       else if (flag === "--help" || flag === "-h") return { command: "help" };
       else throw new Error(`Unknown option: ${flag}`);
+    }
+    if (parsed.transport === "cloudflare" && !parsed.relayUrl) {
+      throw new Error("Cloudflare transport requires --relay <url>.");
     }
     return parsed;
   }

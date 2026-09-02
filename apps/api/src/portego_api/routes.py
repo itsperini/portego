@@ -322,7 +322,9 @@ async def list_gateways(
             {
                 "id": gateway.id,
                 "name": gateway.name,
-                "status": "online" if connections.online(gateway.id) else "offline",
+                "status": "online"
+                if connections.online(gateway.id) or gateway.status == "online"
+                else "offline",
                 "agentVersion": gateway.agent_version,
                 "lastSeenAt": gateway.last_seen_at,
             }

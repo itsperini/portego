@@ -4,12 +4,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import Settings, get_settings
 from .database import create_database
-from .gateway_relay import GatewayConnections
+from .gateway_relay import CloudflareRelayClient, GatewayConnections
 from .models import Base, Gateway, Home, utcnow
 from .routes import router
 from .security import decode_gateway_token
@@ -46,7 +46,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.settings = configured
         app.state.engine = engine
         app.state.session_factory = session_factory
-        app.state.gateway_connections = GatewayConnections()
+        cloudflare = (
+            CloudflareRelayClient(
+                configured.cloudflare_relay_url,
+                configured.cloudflare_relay_secret,
+            )
+            if configured.cloudflare_relay_url and configured.cloudflare_relay_secret
+            else None
+        )
+        app.state.gateway_connections = GatewayConnections(cloudflare)
         if configured.auto_create_tables:
             async with engine.begin() as connection:
                 await connection.run_sync(Base.metadata.create_all)
@@ -68,6 +76,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "X-Portego-CSRF"],
     )
     app.include_router(router)
+
+    @app.post("/internal/cloudflare/gateways/{gateway_id}/status", include_in_schema=False)
+    async def cloudflare_gateway_status(gateway_id: str, request: Request) -> dict:
+        expected = configured.cloudflare_relay_secret
+        if not expected or request.headers.get("authorization") != f"Bearer {expected}":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+        body = await request.json()
+        reported_status = body.get("status") if isinstance(body, dict) else None
+        if reported_status not in {"online", "offline"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid status",
+            )
+        async with app.state.session_factory() as session:
+            gateway = await session.get(Gateway, gateway_id)
+            if gateway is None or gateway.revoked_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Gateway not found",
+                )
+            gateway.status = reported_status
+            gateway.last_seen_at = utcnow()
+            await update_gateway_document(session, gateway, reported_status == "online")
+            await session.commit()
+        return {"ok": True}
 
     async def mark_gateway_offline(gateway_id: str) -> None:
         async with app.state.session_factory() as session:

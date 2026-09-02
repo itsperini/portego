@@ -16,6 +16,7 @@ const HELP = `Portego gateway CLI
 
 AI-friendly setup workflow:
   portego gateway setup [--api <url>] [--name <gateway-name>]
+    [--transport direct|cloudflare] [--relay <url>]
   portego gateway capabilities
   portego gateway discover [--ble] [--all]
   portego gateway candidate <candidate-id>
@@ -103,19 +104,40 @@ async function setupGateway(
       }),
     );
     if (result.status === "pending") continue;
+    const websocketUrl =
+      args.transport === "cloudflare"
+        ? cloudflareWebsocketUrl(args.relayUrl as string, result.gatewayId)
+        : result.websocketUrl;
     await new GatewayCloudCredentialsStore().write({
       version: 1,
       apiUrl: args.apiUrl,
-      websocketUrl: result.websocketUrl,
+      websocketUrl,
       gatewayId: result.gatewayId,
       gatewayToken: result.gatewayToken,
       claimedAt: new Date().toISOString(),
     });
     if (args.json) console.log(JSON.stringify({ status: "paired", gatewayId: result.gatewayId }));
-    else console.log("Gateway paired. Start the Portego agent to bring it online.");
+    else {
+      console.log(
+        `Gateway paired using the ${args.transport === "cloudflare" ? "Cloudflare relay" : "direct cloud"} transport. Start the Portego agent to bring it online.`,
+      );
+    }
     return;
   }
   throw new Error("The gateway approval code expired. Run setup again.");
+}
+
+export function cloudflareWebsocketUrl(relayUrl: string, gatewayId: string): string {
+  const url = new URL(relayUrl);
+  if (url.protocol === "https:") url.protocol = "wss:";
+  else if (url.protocol === "http:") url.protocol = "ws:";
+  else if (url.protocol !== "ws:" && url.protocol !== "wss:") {
+    throw new Error("Cloudflare relay URL must use https, http, wss, or ws.");
+  }
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/gateway/${encodeURIComponent(gatewayId)}/connect`;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
 }
 
 function runtimeForDiscovery(args: DiscoverArguments) {

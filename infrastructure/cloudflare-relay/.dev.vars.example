@@ -1,0 +1,3 @@
+PORTEGO_API_CALLBACK_URL=http://localhost:4000
+PORTEGO_GATEWAY_JWT_SECRET=replace-with-the-same-secret-as-the-portego-api
+PORTEGO_RELAY_SHARED_SECRET=replace-with-a-separate-long-random-secret

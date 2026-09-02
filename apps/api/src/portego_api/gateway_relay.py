@@ -1,13 +1,38 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 
+import httpx
 from fastapi import WebSocket
 
 
+class CloudflareRelayClient:
+    def __init__(self, relay_url: str, secret: str) -> None:
+        self._relay_url = relay_url.rstrip("/")
+        self._secret = secret
+
+    async def send_and_wait(self, gateway_id: str, message: dict, timeout: float = 30) -> dict:
+        async with httpx.AsyncClient(timeout=timeout + 2) as client:
+            response = await client.post(
+                f"{self._relay_url}/internal/gateways/{gateway_id}/command",
+                headers={"Authorization": f"Bearer {self._secret}"},
+                json=message,
+            )
+        if response.status_code == 409:
+            raise LookupError("The gateway is offline.")
+        if response.status_code == 504:
+            raise TimeoutError("The gateway command timed out.")
+        response.raise_for_status()
+        result = response.json()
+        if not isinstance(result, dict):
+            raise ValueError("The Cloudflare relay returned an invalid response.")
+        return result
+
+
 class GatewayConnections:
-    def __init__(self) -> None:
+    def __init__(self, cloudflare: CloudflareRelayClient | None = None) -> None:
         self._connections: dict[str, WebSocket] = {}
         self._pending: dict[tuple[str, str], asyncio.Future[dict]] = {}
+        self._cloudflare = cloudflare
 
     async def connect(self, gateway_id: str, websocket: WebSocket) -> None:
         previous = self._connections.get(gateway_id)
@@ -34,6 +59,8 @@ class GatewayConnections:
         await websocket.send_json(message)
 
     async def send_and_wait(self, gateway_id: str, message: dict, timeout: float = 30) -> dict:
+        if gateway_id not in self._connections and self._cloudflare is not None:
+            return await self._cloudflare.send_and_wait(gateway_id, message, timeout)
         message_id = message.get("messageId")
         if not isinstance(message_id, str):
             raise ValueError("A correlated gateway message requires a messageId.")

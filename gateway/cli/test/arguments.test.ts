@@ -16,8 +16,33 @@ describe("gateway CLI arguments", () => {
       command: "setup",
       apiUrl: "https://api.tryportego.com",
       gatewayName: "Home Pi",
+      transport: "direct",
+      relayUrl: undefined,
       json: false,
     });
+  });
+
+  it("accepts the optional Cloudflare relay transport", () => {
+    expect(
+      parseArguments([
+        "gateway",
+        "setup",
+        "--transport",
+        "cloudflare",
+        "--relay",
+        "https://relay.tryportego.com",
+      ]),
+    ).toMatchObject({
+      command: "setup",
+      transport: "cloudflare",
+      relayUrl: "https://relay.tryportego.com",
+    });
+  });
+
+  it("requires a relay URL for Cloudflare transport", () => {
+    expect(() => parseArguments(["gateway", "setup", "--transport", "cloudflare"])).toThrow(
+      /--relay/,
+    );
   });
 
   it("accepts protocol-neutral discovery options", () => {
