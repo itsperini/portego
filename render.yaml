@@ -8,24 +8,17 @@ services:
     dockerContext: ./apps/api
     healthCheckPath: /healthz
     envVars:
+      - key: PORTEGO_ENVIRONMENT
+        value: production
       - key: PORTEGO_DATABASE_URL
-        fromDatabase:
-          name: portego-postgres
-          property: connectionString
+        sync: false
       - key: PORTEGO_WEB_ORIGINS
-        sync: false
+        value: https://tryportego.com,https://www.tryportego.com
       - key: PORTEGO_WEB_URL
-        sync: false
+        value: https://tryportego.com
       - key: PORTEGO_COOKIE_SECURE
         value: "true"
       - key: PORTEGO_GATEWAY_JWT_SECRET
         generateValue: true
       - key: PORTEGO_AUTO_CREATE_TABLES
         value: "false"
-
-databases:
-  - name: portego-postgres
-    region: frankfurt
-    plan: 0.1c-256mb
-    databaseName: portego
-    user: portego
