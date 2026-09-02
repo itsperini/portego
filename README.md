@@ -1,14 +1,79 @@
-# Portego
+<p align="center">
+  <img src="docs/assets/portego-logo.svg" alt="Portego" width="88" height="88">
+</p>
 
-Portego lets you design and control a smart home through a conversation. An AI
-assistant edits the same spatial home model as the browser UI, while a local
-Linux gateway discovers and controls devices without exposing the home network.
+<h1 align="center">Portego</h1>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+  <a href="https://tryportego.com"><img src="https://img.shields.io/badge/try-tryportego.com-111111" alt="Try Portego"></a>
+  <a href="https://x.com/itsperini"><img src="https://img.shields.io/badge/X-@itsperini-000000" alt="itsperini on X"></a>
+</p>
+
+Portego is a conversational digital twin for the smart home. Describe rooms and
+devices to an assistant, see them on a shared canvas, and later bind that
+design to real hardware through a local Linux gateway.
 
 ![Portego canvas controlled through ChatGPT](docs/assets/portego-webmcp-canvas.png)
 
+## Build your home
+
+Open [tryportego.com](https://tryportego.com) in ChatGPT, Codex, or another
+WebMCP-capable client and ask:
+
+> Go to https://tryportego.com. Create a one-floor house with four rooms: an
+> entrance that opens into a living room, a kitchen to its right, and a bedroom
+> and bathroom along the back. Connect the rooms with doors, add a dimmable
+> ceiling light in each room, and put a switch beside each door.
+
+The assistant edits a validated home model through WebMCP. The same floor plan
+appears in the browser, with undo and direct controls if you want to correct
+it.
+
+> [!NOTE]
+> Already designed a home and want to bind real devices to it? Request
+> private-beta login credentials from [@itsperini](https://x.com/itsperini) on X.
+
+## How it works
+
+- The **web canvas** is the shared spatial model: floors, rooms, devices,
+  doors, and windows.
+- A **Linux gateway** on the home network discovers devices and keeps
+  credentials local. It opens an outbound connection only; no port forwarding.
+- The **cloud API** stores the signed-in home, claims the gateway, and relays
+  short-lived commands.
+- **Adapters** (Shelly today, Matter discovery next) normalize hardware into
+  bindable endpoints. Designed devices stay stable when hardware is replaced.
+
+```mermaid
+flowchart LR
+    C[ChatGPT or Codex]
+    B[Browser]
+    WEB[tryportego.com<br/>Vercel]
+    API[api.tryportego.com<br/>FastAPI / Render]
+    DB[(PostgreSQL)]
+    CF[Cloudflare<br/>Durable Object]
+    G[Gateway<br/>Linux / Raspberry Pi]
+    D[Smart devices]
+
+    C -->|WebMCP| WEB
+    B -->|HTTPS| WEB
+    WEB -->|session + home model| API
+    API --> DB
+    API <-->|direct WebSocket| G
+    API <-->|commands| CF
+    CF <-->|WebSocket| G
+    G -->|mDNS · SSDP · BLE · Matter| D
+```
+
+Vercel hosts the web app at tryportego.com. Render hosts FastAPI at
+api.tryportego.com. The gateway connects with a direct WebSocket to the API,
+or through a Cloudflare Durable Object. Details:
+[`infrastructure/README.md`](infrastructure/README.md).
+
 ## Run locally
 
-You need Docker Desktop with Docker Compose.
+Requires Docker Desktop.
 
 ```sh
 git clone git@github.com:itsperini/portego.git
@@ -16,103 +81,61 @@ cd portego
 pnpm dev
 ```
 
-Open:
-
 - App: <http://localhost:3100>
-- API health: <http://localhost:4000/healthz>
-- API docs: <http://localhost:4000/docs>
+- API: <http://localhost:4000/healthz>
 
-Create a private-beta account. The command asks for the password securely:
+Create a local user (password is prompted, not stored in shell history):
 
 ```sh
 docker compose exec api uv run portego-user create --email you@example.com
 ```
 
+`pnpm check` runs lint, types, tests, and production builds.
+
 ## Connect a gateway
 
-Pair the computer that will stay on the home network:
+![Portego gateway settings](docs/assets/portego-gateway-settings.png)
+
+On the always-on machine in the home, from this repository:
 
 ```sh
-pnpm portego -- setup --api http://localhost:4000 --name "Home gateway"
-```
+pnpm portego -- setup \
+  --api https://api.tryportego.com \
+  --name "Home Raspberry Pi"
 
-Open the URL printed by the command, log in, and approve the code. Then start
-the gateway:
-
-```sh
 pnpm dev:gateway
 ```
 
-The Gateway panel in the app will show it as online and can run discovery on
-the gateway's local network. Raspberry Pi service installation and complete
-gateway commands are documented in [`gateway/README.md`](gateway/README.md).
+Open the printed URL, sign in, and approve the code. Then start the agent.
+For a local API, pass `--api http://localhost:4000` instead.
 
-## Talk to the canvas
+Full CLI, discovery, and Cloudflare transport:
+[`gateway/README.md`](gateway/README.md).
 
-Open Portego in a WebMCP-capable browser or client and ask something like:
-
-> Add a kitchen beside the living room, connect them with a door, and place a
-> dimmable ceiling light in each room.
-
-Portego exposes structured WebMCP tools for homes, floors, rooms, devices,
-bindings, doors, windows, undo, and redo. The assistant changes the validated
-home model instead of clicking arbitrary coordinates.
-
-## How it works
-
-```mermaid
-flowchart LR
-    A[ChatGPT or Codex<br/>WebMCP client] -->|WebMCP tools| W
-    B[Chrome or Codex browser] --> W[Portego web app<br/>Vercel]
-    W -->|HTTPS + session| API[FastAPI<br/>Render]
-    API --> DB[(PostgreSQL<br/>Render)]
-    API -->|direct WebSocket<br/>default| G[Portego gateway<br/>Linux / Raspberry Pi]
-    API <-->|authenticated commands| CF[Cloudflare Worker<br/>+ Durable Object]
-    CF <-->|optional WebSocket| G
-    G -->|mDNS · SSDP · local API<br/>BLE · Matter| D[Smart devices]
-```
-
-- **Vercel** serves the Next.js canvas and its WebMCP tools.
-- **Render** runs the FastAPI API and PostgreSQL database.
-- **Cloudflare** optionally provides an edge relay with one hibernatable
-  Durable Object connection per gateway.
-- **The gateway** runs inside the home and only makes outbound connections.
-- **Adapters** translate Matter, Shelly, and future protocols into one Portego
-  device model.
-
-The Cloudflare path is optional; direct gateway-to-Render WebSocket remains the
-default. See [`infrastructure/cloudflare-relay/README.md`](infrastructure/cloudflare-relay/README.md).
-
-## Repository map
+## Repository
 
 | Path | Purpose |
 | --- | --- |
-| [`apps/web`](apps/web/README.md) | Next.js, Konva canvas, and WebMCP tools |
-| [`apps/api`](apps/api/README.md) | FastAPI authentication, homes, and gateway relay |
-| [`gateway`](gateway/README.md) | Gateway CLI, agent, discovery, and runtime |
-| [`adapters`](adapters/README.md) | Device and protocol integrations |
-| [`packages`](packages/README.md) | Shared models, messages, and gateway contracts |
-| [`infrastructure`](infrastructure/README.md) | Render and optional Cloudflare deployment |
-| [`docs/architecture`](docs/architecture) | Architecture decision records |
+| [`apps/web`](apps/web/README.md) | Next.js canvas and WebMCP tools |
+| [`apps/api`](apps/api/README.md) | Auth, homes, gateway claim, and command relay |
+| [`gateway`](gateway/README.md) | Linux agent, CLI, and discovery |
+| [`adapters`](adapters/README.md) | Protocol drivers |
+| [`packages`](packages/README.md) | Shared home model and gateway contracts |
+| [`docs/architecture`](docs/architecture) | Architecture decisions |
 
-## Verify the repository
+Private beta includes canvas editing, persisted homes, gateway claiming, Shelly
+control, and Matter discovery (commissioning not enabled yet). Public signup,
+remote MCP OAuth, and a packaged Pi service are still planned.
 
-```sh
-pnpm check
-```
+## Get involved
 
-This runs formatting and lint checks, TypeScript and Python type checks, tests,
-and production builds across the monorepo.
+Portego is still in beta. The canvas is open to try; accounts and live hardware
+are invite-only. Contributions of all kinds are welcome: adapters, docs, bugs,
+and ideas.
 
-## Current scope
-
-Implemented: private-beta login, persistent homes, a Konva floor-plan editor,
-WebMCP editing, gateway claiming, local discovery, Shelly support, Matter
-discovery boundaries, direct WebSocket transport, and the optional Cloudflare
-relay.
-
-Still planned: public signup and recovery, multiple homes, production MCP OAuth,
-full Matter commissioning, and an installable Raspberry Pi system service.
+> [!TIP]
+> Try the canvas at [tryportego.com](https://tryportego.com), open an issue or
+> pull request on this repo, and reach [@itsperini](https://x.com/itsperini) on X.
 
 ## License
 
