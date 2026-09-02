@@ -30,8 +30,3 @@ gateway inventory during discovery. This currently covers unauthenticated Shelly
 devices: discovery does not reconfigure them, but makes their endpoints available
 for an explicit canvas binding. Devices requiring credentials or a physical
 commissioning action remain candidates until a dedicated setup flow is added.
-
-## Legacy server
-
-`apps/server` is excluded from the workspace and retained only as reference.
-FastAPI is the sole authoritative backend.

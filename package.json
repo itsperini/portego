@@ -12,7 +12,6 @@
     "build": "turbo run build",
     "check": "pnpm lint && pnpm lint:api && pnpm typecheck && pnpm test && pnpm test:api && pnpm build",
     "dev": "docker compose up --build",
-    "dev:legacy": "turbo run dev",
     "dev:web": "pnpm --filter @portego/web dev",
     "dev:api": "uv run --project apps/api uvicorn portego_api.main:app --reload --host 0.0.0.0 --port 4000",
     "dev:gateway": "pnpm --filter @portego/gateway-agent dev",
