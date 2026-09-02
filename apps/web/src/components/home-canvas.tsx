@@ -7,9 +7,19 @@ import type {
   Room,
   UpdateRoomInput,
 } from "@portego/home-model";
-import { Bot, ChevronRight, House, Lightbulb, Plus, Redo2, Undo2 } from "lucide-react";
+import {
+  Bot,
+  ChevronRight,
+  Eraser,
+  House,
+  Lightbulb,
+  Plus,
+  Redo2,
+  TriangleAlert,
+  Undo2,
+} from "lucide-react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const CHATGPT_HOME_SETUP_PROMPT =
   'I need to set up my house for smart devices. Open https://tryportego.com and create a standard 180 m² house split across two floors. The 90 m² ground floor should contain a kitchen, living room, two bedrooms, a bathroom, and a common-space room connecting all the other rooms. Add one light to every ground-floor room except the common space. In the living room, add a second light named "TV lamp" and place it close to the right wall. Add a 90 m² attic floor with three rooms and only one light across the entire attic. Remember to add appropriate doors and windows on both floors.';
@@ -52,6 +62,7 @@ type HomeCanvasProps = {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  onReset: () => void;
   busy: boolean;
 };
 
@@ -72,9 +83,23 @@ export function HomeCanvas({
   canRedo,
   onUndo,
   onRedo,
+  onReset,
   busy,
 }: HomeCanvasProps) {
   const [promptCopied, setPromptCopied] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const keepHomeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!resetOpen) return;
+
+    keepHomeButtonRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) setResetOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [busy, resetOpen]);
 
   async function copySetupPrompt() {
     try {
@@ -111,13 +136,23 @@ export function HomeCanvas({
         <div
           className="history-controls floating-history-controls"
           role="group"
-          aria-label="Edit history"
+          aria-label="Canvas actions"
         >
           <button type="button" onClick={onUndo} disabled={!canUndo || busy} aria-label="Undo">
             <Undo2 size={14} />
           </button>
           <button type="button" onClick={onRedo} disabled={!canRedo || busy} aria-label="Redo">
             <Redo2 size={14} />
+          </button>
+          <button
+            className="reset-home-control"
+            type="button"
+            onClick={() => setResetOpen(true)}
+            disabled={busy}
+            aria-label="Reset home structure"
+            title="Reset home structure"
+          >
+            <Eraser size={14} />
           </button>
         </div>
         <KonvaHomeCanvas
@@ -175,6 +210,51 @@ export function HomeCanvas({
           <span>5 m</span>
         </div>
       </div>
+
+      {resetOpen ? (
+        <div className="portal-overlay" role="presentation">
+          <section
+            className="portal-card reset-home-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="reset-home-title"
+            aria-describedby="reset-home-description"
+          >
+            <div className="reset-home-dialog-icon" aria-hidden="true">
+              <TriangleAlert size={19} />
+            </div>
+            <span className="portal-kicker">Canvas reset</span>
+            <h1 id="reset-home-title">Reset the home structure?</h1>
+            <p id="reset-home-description">
+              This removes every room, device, door, window, and physical binding from the canvas.
+              Your account and paired gateway stay connected.
+            </p>
+            <div className="reset-home-dialog-actions">
+              <button
+                ref={keepHomeButtonRef}
+                className="portal-secondary"
+                type="button"
+                onClick={() => setResetOpen(false)}
+                disabled={busy}
+              >
+                Keep home
+              </button>
+              <button
+                className="portal-danger-button"
+                type="button"
+                onClick={() => {
+                  onReset();
+                  setResetOpen(false);
+                }}
+                disabled={busy}
+              >
+                <Eraser size={15} />
+                Reset home
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -1666,6 +1666,17 @@ export function PortegoWorkspace() {
               setActivity("Last edit restored.");
             })
           }
+          onReset={() =>
+            void run(async () => {
+              await reset();
+              setAddingDevice(false);
+              setSelectedDeviceId(undefined);
+              setSelectedRoomId(undefined);
+              setSelectedDetails(undefined);
+              setInspectorExpanded(false);
+              setActivity("Home structure reset. Start with a room or copy the setup prompt.");
+            })
+          }
           busy={busy}
         />
 
