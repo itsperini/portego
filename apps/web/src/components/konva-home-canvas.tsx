@@ -35,6 +35,7 @@ type Guide = {
 
 type KonvaHomeCanvasProps = {
   home: HomeDocument;
+  floorName: string;
   selectedDeviceId?: string;
   selectedRoomId?: string;
   onSelectDevice: (device?: Device) => void;
@@ -42,7 +43,17 @@ type KonvaHomeCanvasProps = {
   onUpdateRoom: (input: UpdateRoomInput) => void;
   onMoveDevice: (input: MoveDeviceInput) => void;
   onToggleDevice: (device: Device) => void;
+  onExporterReady: (exporter?: () => Promise<Blob>) => void;
 };
+
+function loadImage(source: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("The Portego mark could not be loaded."));
+    image.src = source;
+  });
+}
 
 function OpeningShape({ opening, room }: { opening: Opening; room: Room }) {
   const horizontal = opening.wall === "top" || opening.wall === "bottom";
@@ -215,6 +226,7 @@ function RoomShape({ room, selected, viewportScale, onSelect, onGuide, onCommit 
       </Group>
       {selected ? (
         <Transformer
+          name="export-ignore"
           ref={transformerRef}
           rotateEnabled={false}
           flipEnabled={false}
@@ -430,6 +442,7 @@ function DeviceShape({
 
 export function KonvaHomeCanvas({
   home,
+  floorName,
   selectedDeviceId,
   selectedRoomId,
   onSelectDevice,
@@ -437,9 +450,11 @@ export function KonvaHomeCanvas({
   onUpdateRoom,
   onMoveDevice,
   onToggleDevice,
+  onExporterReady,
 }: KonvaHomeCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const blueprintLayerRef = useRef<Konva.Layer>(null);
   const panRef = useRef<{
     active: boolean;
     start: { x: number; y: number };
@@ -448,6 +463,111 @@ export function KonvaHomeCanvas({
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const [guide, setGuide] = useState<Guide>({});
+
+  const exportShareImage = useCallback(async (): Promise<Blob> => {
+    const layer = blueprintLayerRef.current;
+    if (!layer || home.rooms.length === 0) {
+      throw new Error("Add at least one room before sharing the blueprint.");
+    }
+
+    await document.fonts.ready;
+    const padding = 44;
+    const left = Math.max(0, Math.min(...home.rooms.map((room) => room.x)) - padding);
+    const top = Math.max(0, Math.min(...home.rooms.map((room) => room.y)) - padding);
+    const right = Math.min(
+      DOCUMENT_WIDTH,
+      Math.max(...home.rooms.map((room) => room.x + room.width)) + padding,
+    );
+    const bottom = Math.min(
+      DOCUMENT_HEIGHT,
+      Math.max(...home.rooms.map((room) => room.y + room.height)) + padding,
+    );
+
+    const exportLayer = layer.clone({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+    exportLayer.find(".export-ignore").forEach((node) => {
+      node.hide();
+    });
+    const blueprint = exportLayer.toCanvas({
+      x: left,
+      y: top,
+      width: right - left,
+      height: bottom - top,
+      pixelRatio: 2,
+    });
+    exportLayer.destroy();
+
+    const output = document.createElement("canvas");
+    output.width = 1200;
+    output.height = 675;
+    const context = output.getContext("2d");
+    if (!context) throw new Error("This browser cannot create the share image.");
+
+    context.fillStyle = "#e8f0f3";
+    context.fillRect(0, 0, output.width, output.height);
+    context.fillStyle = "#f8fbfa";
+    context.fillRect(28, 28, output.width - 56, output.height - 56);
+    context.strokeStyle = "#cbd9df";
+    context.lineWidth = 2;
+    context.strokeRect(28, 28, output.width - 56, output.height - 56);
+
+    const mark = await loadImage("/assets/portego-mark.svg");
+    context.drawImage(mark, 58, 53, 22, 29);
+    context.fillStyle = "#0b2133";
+    context.font = '700 25px "Manrope Variable", Manrope, sans-serif';
+    context.fillText("portego", 94, 78);
+    context.font = '700 11px "JetBrains Mono Variable", monospace';
+    context.letterSpacing = "1.2px";
+    context.fillStyle = "#237d78";
+    context.fillText("CONVERSATIONAL HOME BLUEPRINT", 872, 72);
+    context.letterSpacing = "0px";
+
+    const frame = { x: 58, y: 110, width: 1084, height: 438 };
+    context.fillStyle = "#f3f8f8";
+    context.fillRect(frame.x, frame.y, frame.width, frame.height);
+    context.strokeStyle = "#9fb4be";
+    context.lineWidth = 1;
+    context.strokeRect(frame.x, frame.y, frame.width, frame.height);
+
+    const scale = Math.min(frame.width / blueprint.width, frame.height / blueprint.height);
+    const drawWidth = blueprint.width * scale;
+    const drawHeight = blueprint.height * scale;
+    context.drawImage(
+      blueprint,
+      frame.x + (frame.width - drawWidth) / 2,
+      frame.y + (frame.height - drawHeight) / 2,
+      drawWidth,
+      drawHeight,
+    );
+
+    context.fillStyle = "#0b2133";
+    context.font = '700 21px "Manrope Variable", Manrope, sans-serif';
+    context.fillText(`${home.name} · ${floorName}`, 58, 590);
+    context.fillStyle = "#5c7485";
+    context.font = '600 12px "JetBrains Mono Variable", monospace';
+    context.fillText(
+      `${home.rooms.length} ${home.rooms.length === 1 ? "room" : "rooms"} · ${home.devices.length} ${home.devices.length === 1 ? "device" : "devices"} · built with WebMCP`,
+      58,
+      615,
+    );
+    context.textAlign = "right";
+    context.fillStyle = "#237d78";
+    context.font = '700 13px "JetBrains Mono Variable", monospace';
+    context.fillText("tryportego.com", 1142, 608);
+    context.textAlign = "left";
+
+    return await new Promise<Blob>((resolve, reject) => {
+      output.toBlob(
+        (blob) =>
+          blob ? resolve(blob) : reject(new Error("The share image could not be encoded.")),
+        "image/png",
+      );
+    });
+  }, [floorName, home]);
+
+  useEffect(() => {
+    onExporterReady(exportShareImage);
+    return () => onExporterReady(undefined);
+  }, [exportShareImage, onExporterReady]);
 
   const resetViewport = useCallback(
     (nextSize = size) => setViewport(fitViewport(nextSize.width, nextSize.height)),
@@ -571,7 +691,13 @@ export function KonvaHomeCanvas({
         onTouchEnd={endPan}
         onMouseLeave={endPan}
       >
-        <Layer x={viewport.x} y={viewport.y} scaleX={viewport.scale} scaleY={viewport.scale}>
+        <Layer
+          ref={blueprintLayerRef}
+          x={viewport.x}
+          y={viewport.y}
+          scaleX={viewport.scale}
+          scaleY={viewport.scale}
+        >
           <Rect
             name="canvas-background"
             width={DOCUMENT_WIDTH}
@@ -623,6 +749,7 @@ export function KonvaHomeCanvas({
           ))}
           {guide.x !== undefined ? (
             <Line
+              name="export-ignore"
               points={[guide.x, 0, guide.x, DOCUMENT_HEIGHT]}
               stroke="#2d7c79"
               strokeWidth={1 / viewport.scale}
@@ -632,6 +759,7 @@ export function KonvaHomeCanvas({
           ) : null}
           {guide.y !== undefined ? (
             <Line
+              name="export-ignore"
               points={[0, guide.y, DOCUMENT_WIDTH, guide.y]}
               stroke="#2d7c79"
               strokeWidth={1 / viewport.scale}

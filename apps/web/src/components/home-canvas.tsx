@@ -10,19 +10,33 @@ import type {
 import {
   Bot,
   ChevronRight,
+  X as CloseIcon,
+  Download,
   Eraser,
   House,
   Lightbulb,
+  LoaderCircle,
   Plus,
   Redo2,
+  Share2,
   TriangleAlert,
   Undo2,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const CHATGPT_HOME_SETUP_PROMPT =
   'I need to set up my house for smart devices. Open https://tryportego.com and create a standard 180 m² house split across two floors. The 90 m² ground floor should contain a kitchen, living room, two bedrooms, a bathroom, and a common-space room connecting all the other rooms. Add one light to every ground-floor room except the common space. In the living room, add a second light named "TV lamp" and place it close to the right wall. Add a 90 m² attic floor with three rooms and only one light across the entire attic. Remember to add appropriate doors and windows on both floors.';
+const SHARE_TEXT =
+  "Try WebMCP with Portego to generate your home blueprint and add smart devices with AI.";
+
+function XMark({ size = 14 }: { size?: number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z" />
+    </svg>
+  );
+}
 
 function ChatGptMark() {
   return (
@@ -88,7 +102,26 @@ export function HomeCanvas({
 }: HomeCanvasProps) {
   const [promptCopied, setPromptCopied] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareBlob, setShareBlob] = useState<Blob>();
+  const [shareImageUrl, setShareImageUrl] = useState<string>();
+  const [shareError, setShareError] = useState<string>();
+  const [exportReady, setExportReady] = useState(false);
+  const exporterRef = useRef<(() => Promise<Blob>) | undefined>(undefined);
   const keepHomeButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleExporterReady = useCallback((exporter?: () => Promise<Blob>) => {
+    exporterRef.current = exporter;
+    setExportReady(Boolean(exporter));
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (shareImageUrl) URL.revokeObjectURL(shareImageUrl);
+    },
+    [shareImageUrl],
+  );
 
   useEffect(() => {
     if (!resetOpen) return;
@@ -119,6 +152,66 @@ export function HomeCanvas({
     window.setTimeout(() => setPromptCopied(false), 2200);
   }
 
+  async function prepareShare() {
+    const exporter = exporterRef.current;
+    if (!exporter) return;
+    setShareOpen(true);
+    setShareBusy(true);
+    setShareError(undefined);
+    try {
+      const blob = await exporter();
+      setShareBlob(blob);
+      setShareImageUrl(URL.createObjectURL(blob));
+    } catch (shareFailure) {
+      setShareError(
+        shareFailure instanceof Error ? shareFailure.message : "The share image could not be made.",
+      );
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  function downloadShareImage() {
+    if (!shareBlob || !shareImageUrl) return;
+    const link = document.createElement("a");
+    link.download = `${home.name}-${floorName}-portego.png`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    link.href = shareImageUrl;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function openXComposer() {
+    downloadShareImage();
+    const params = new URLSearchParams({ text: SHARE_TEXT, url: "https://tryportego.com" });
+    window.open(`https://x.com/intent/tweet?${params.toString()}`, "portego-x-share", "popup");
+  }
+
+  async function shareImage() {
+    if (!shareBlob) return;
+    const file = new File([shareBlob], "portego-home-blueprint.png", { type: "image/png" });
+    if (!navigator.canShare?.({ files: [file] })) {
+      openXComposer();
+      return;
+    }
+    try {
+      await navigator.share({
+        files: [file],
+        text: SHARE_TEXT,
+        title: `${home.name} · ${floorName}`,
+        url: "https://tryportego.com",
+      });
+    } catch (shareFailure) {
+      if (shareFailure instanceof DOMException && shareFailure.name === "AbortError") return;
+      setShareError(
+        "The system share sheet could not be opened. You can download the image instead.",
+      );
+    }
+  }
+
   return (
     <section className="canvas-shell" aria-label="Portego home canvas">
       <div className="canvas-stage">
@@ -145,6 +238,16 @@ export function HomeCanvas({
             <Redo2 size={14} />
           </button>
           <button
+            className="share-home-control"
+            type="button"
+            onClick={() => void prepareShare()}
+            disabled={busy || shareBusy || !exportReady || home.rooms.length === 0}
+            aria-label="Share blueprint"
+            title={home.rooms.length === 0 ? "Add a room before sharing" : "Share blueprint"}
+          >
+            <Share2 size={14} />
+          </button>
+          <button
             className="reset-home-control"
             type="button"
             onClick={() => setResetOpen(true)}
@@ -157,6 +260,7 @@ export function HomeCanvas({
         </div>
         <KonvaHomeCanvas
           home={home}
+          floorName={floorName}
           selectedDeviceId={selectedDeviceId}
           selectedRoomId={selectedRoomId}
           onSelectDevice={onSelectDevice}
@@ -164,6 +268,7 @@ export function HomeCanvas({
           onUpdateRoom={onUpdateRoom}
           onMoveDevice={onMoveDevice}
           onToggleDevice={onToggleDevice}
+          onExporterReady={handleExporterReady}
         />
 
         {home.rooms.length === 0 ? (
@@ -252,6 +357,78 @@ export function HomeCanvas({
                 Reset home
               </button>
             </div>
+          </section>
+        </div>
+      ) : null}
+
+      {shareOpen ? (
+        <div className="portal-overlay" role="presentation">
+          <section
+            className="portal-card share-home-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-home-title"
+          >
+            <button
+              className="portal-close"
+              type="button"
+              onClick={() => setShareOpen(false)}
+              aria-label="Close share preview"
+            >
+              <CloseIcon size={17} />
+            </button>
+            <span className="portal-kicker">Share blueprint</span>
+            <div className="share-home-copy">
+              <h1 id="share-home-title">Show what you built with WebMCP.</h1>
+              <p>{SHARE_TEXT}</p>
+            </div>
+
+            <div className="share-home-preview" aria-live="polite">
+              {shareBusy ? (
+                <div className="share-home-loading">
+                  <LoaderCircle className="is-spinning" size={20} />
+                  <span>Drawing your blueprint…</span>
+                </div>
+              ) : shareImageUrl ? (
+                // biome-ignore lint/performance/noImgElement: the preview is a temporary local Blob URL
+                <img src={shareImageUrl} alt={`Share preview of ${home.name}, ${floorName}`} />
+              ) : null}
+            </div>
+
+            {shareError ? <p className="portal-error">{shareError}</p> : null}
+            <div className="share-home-actions">
+              <button
+                className="portal-primary"
+                type="button"
+                onClick={() => void shareImage()}
+                disabled={!shareBlob || shareBusy}
+              >
+                <Share2 size={15} />
+                Share image
+              </button>
+              <button
+                className="portal-secondary"
+                type="button"
+                onClick={downloadShareImage}
+                disabled={!shareBlob || shareBusy}
+              >
+                <Download size={15} />
+                Download PNG
+              </button>
+              <button
+                className="share-x-fallback"
+                type="button"
+                onClick={openXComposer}
+                disabled={!shareBlob || shareBusy}
+              >
+                <XMark />
+                Open X composer
+              </button>
+            </div>
+            <p className="share-home-note">
+              On desktop, Portego downloads the image for you to attach in the X composer. Nothing
+              is uploaded or stored by Portego.
+            </p>
           </section>
         </div>
       ) : null}
