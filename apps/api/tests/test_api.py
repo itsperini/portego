@@ -147,6 +147,29 @@ def test_gateway_claim_machine_token_and_websocket(tmp_path: Path) -> None:
         ).json()
         assert credential["status"] == "approved"
         assert "gatewayToken" in credential
+        assert credential["websocketUrl"] == "ws://testserver/gateway/ws"
+
+        behind_tls = client.post(
+            "/api/gateway/claim/start",
+            json={"gatewayName": "TLS Raspberry Pi", "agentVersion": "0.2.0"},
+            headers={"X-Forwarded-Proto": "https"},
+        )
+        assert behind_tls.status_code == 201
+        tls_codes = behind_tls.json()
+        assert (
+            client.post(
+                "/api/gateways/claim/approve",
+                headers={"X-Portego-CSRF": csrf},
+                json={"userCode": tls_codes["userCode"]},
+            ).status_code
+            == 200
+        )
+        tls_credential = client.post(
+            "/api/gateway/claim/poll",
+            json={"deviceCode": tls_codes["deviceCode"]},
+            headers={"X-Forwarded-Proto": "https"},
+        ).json()
+        assert tls_credential["websocketUrl"] == "wss://testserver/gateway/ws"
 
         with client.websocket_connect(
             "/gateway/ws", headers={"Authorization": f"Bearer {credential['gatewayToken']}"}

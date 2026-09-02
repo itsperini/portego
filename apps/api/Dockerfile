@@ -18,4 +18,4 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
 
 EXPOSE 4000
-CMD ["sh", "-c", "uv run alembic upgrade head && exec uv run uvicorn portego_api.main:app --host 0.0.0.0 --port ${PORT:-4000}"]
+CMD ["sh", "-c", "uv run alembic upgrade head && exec uv run uvicorn portego_api.main:app --host 0.0.0.0 --port ${PORT:-4000} --proxy-headers --forwarded-allow-ips='*'"]

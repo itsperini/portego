@@ -44,6 +44,18 @@ router = APIRouter()
 login_limiter = LoginLimiter()
 
 
+def gateway_websocket_url(request: Request, settings: Settings) -> str:
+    url = request.url_for("gateway_websocket")
+    forwarded = request.headers.get("x-forwarded-proto", "")
+    proto = forwarded.split(",")[0].strip() or url.scheme
+    use_tls = (
+        proto in {"https", "wss"}
+        or settings.cookie_secure
+        or settings.environment == "production"
+    )
+    return str(url.replace(scheme="wss" if use_tls else "ws"))
+
+
 def user_payload(context: AuthContext, has_home: bool) -> dict:
     return {
         "authenticated": True,
@@ -276,7 +288,7 @@ async def poll_gateway_claim(
         "status": "approved",
         "gatewayId": claim.gateway_id,
         "gatewayToken": issue_gateway_token(claim.gateway_id, settings),
-        "websocketUrl": str(request.url_for("gateway_websocket")).replace("http", "ws", 1),
+        "websocketUrl": gateway_websocket_url(request, settings),
     }
 
 
