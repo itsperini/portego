@@ -630,7 +630,7 @@ export async function registerPortegoTools(
         name: "device.set_state",
         title: "Control a device",
         description:
-          "Set a supported power or brightness state for one named device bound to reachable hardware. This has an immediate simulated physical side effect.",
+          "Set a supported power or brightness state for one named device bound to reachable hardware. Portego waits for the gateway to confirm the resulting physical state.",
         inputSchema: {
           type: "object",
           properties: {

@@ -71,6 +71,17 @@ class DeviceState(StrictModel):
     energy: float | None = Field(default=None, ge=0)
 
 
+class DeviceStateInput(StrictModel):
+    on: bool | None = None
+    brightness: int | None = Field(default=None, ge=0, le=100)
+
+    @model_validator(mode="after")
+    def has_command(self) -> "DeviceStateInput":
+        if self.on is None and self.brightness is None:
+            raise ValueError("At least one device state must be provided")
+        return self
+
+
 class DeviceEndpoint(StrictModel):
     id: str
     gatewayId: str

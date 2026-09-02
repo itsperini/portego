@@ -61,6 +61,11 @@ The default scan listens for mDNS and SSDP advertisements. It does not sweep
 every address in the network. Use `--host` when multicast discovery is blocked
 or you already know the device address.
 
+When discovery recognizes a device that is safe to add without credentials or
+physical commissioning, the agent stores it in the local inventory and reports
+its endpoints to FastAPI. The canvas can then bind a designed device to an
+endpoint. Devices that need credentials or user action remain unpaired.
+
 BLE uses Linux BlueZ and is opt-in. Matter discovery uses DNS-SD; full Matter
 fabric commissioning is not enabled yet.
 
@@ -90,6 +95,10 @@ the cloud or an AI tool.
 3. Adapters score and inspect matching candidates.
 4. Commissioning creates normalized devices and endpoints.
 5. The agent reports endpoints and handles short-lived cloud commands.
+
+For a bound device, the agent executes the command through its local driver,
+refreshes the physical endpoint, and reports the confirmed state. The browser
+does not assume that a command succeeded.
 
 See [`../adapters/README.md`](../adapters/README.md) for adapter boundaries and
 [`../packages/README.md`](../packages/README.md) for shared contracts.

@@ -709,6 +709,14 @@ function DeviceCard({
           ))}
         </select>
       </label>
+      {!endpoint &&
+      home.endpoints.length > 0 &&
+      !home.endpoints.some((candidate) => endpointSupportsDevice(candidate, device)) ? (
+        <p className="binding-warning">
+          No endpoint provides every configured feature. For an on/off relay, turn off dimming in
+          the light configuration, apply the change, then bind it.
+        </p>
+      ) : null}
 
       {device.capabilities.includes("power") ? (
         <div className="device-control-row">
@@ -963,6 +971,7 @@ export function PortegoWorkspace() {
     getHome,
     importCurrentHome,
     startEmptyHome,
+    refreshHome,
     updateHomeDetails,
     updateFloorDetails,
     removeFloor,
@@ -1737,6 +1746,7 @@ export function PortegoWorkspace() {
         <GatewayModal
           csrfToken={auth.csrfToken}
           initialClaimCode={initialClaimCode}
+          onInventoryChanged={refreshHome}
           onClose={() => {
             setGatewayOpen(false);
             setInitialClaimCode(undefined);

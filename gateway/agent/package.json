@@ -14,7 +14,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@portego/adapter-simulated": "workspace:*",
     "@portego/gateway-core": "workspace:*",
     "@portego/gateway-protocol": "workspace:*",
     "@portego/gateway-runtime": "workspace:*",

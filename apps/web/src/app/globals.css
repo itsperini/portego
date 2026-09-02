@@ -2195,6 +2195,98 @@ a:focus-visible,
   margin-top: 16px;
 }
 
+.autodiscovery-button {
+  width: 100%;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--ink-strong);
+  border-radius: 5px;
+  color: white;
+  background: var(--ink-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.autodiscovery-button > span,
+.manual-discovery summary > span {
+  display: grid;
+  gap: 3px;
+}
+
+.autodiscovery-button strong {
+  font-size: 11px;
+}
+
+.autodiscovery-button small {
+  color: rgba(255, 255, 255, 0.66);
+  font-family: var(--font-mono);
+  font-size: 7px;
+}
+
+.autodiscovery-button:not(:disabled):hover {
+  border-color: var(--teal);
+  background: var(--teal);
+}
+
+.autodiscovery-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.manual-discovery {
+  margin-top: 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.manual-discovery summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 12px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.manual-discovery summary::-webkit-details-marker {
+  display: none;
+}
+
+.manual-discovery summary strong {
+  font-size: 9px;
+}
+
+.manual-discovery summary small {
+  color: var(--slate);
+  font-family: var(--font-mono);
+  font-size: 7px;
+}
+
+.manual-discovery summary svg {
+  transition: transform 150ms ease;
+}
+
+.manual-discovery[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.manual-discovery-body {
+  padding: 0 10px 11px;
+  border-top: 1px solid var(--line);
+}
+
+.manual-discovery-body .discovery-methods {
+  margin-top: 10px;
+}
+
 .discovery-methods button {
   min-height: 58px;
   display: grid;

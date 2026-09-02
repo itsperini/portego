@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@portego/gateway-core": "workspace:*",
     "@portego/home-model": "workspace:*",
     "zod": "4.5.4"
   },

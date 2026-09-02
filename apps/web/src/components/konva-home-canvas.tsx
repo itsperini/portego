@@ -39,7 +39,6 @@ type KonvaHomeCanvasProps = {
   selectedRoomId?: string;
   onSelectDevice: (device?: Device) => void;
   onSelectRoom: (room?: Room) => void;
-  onSelectFloor: () => void;
   onUpdateRoom: (input: UpdateRoomInput) => void;
   onMoveDevice: (input: MoveDeviceInput) => void;
   onToggleDevice: (device: Device) => void;
@@ -435,7 +434,6 @@ export function KonvaHomeCanvas({
   selectedRoomId,
   onSelectDevice,
   onSelectRoom,
-  onSelectFloor,
   onUpdateRoom,
   onMoveDevice,
   onToggleDevice,
@@ -527,7 +525,6 @@ export function KonvaHomeCanvas({
     if (!pointer || (event.target !== stage && event.target.name() !== "canvas-background")) {
       return;
     }
-    onSelectFloor();
     panRef.current = {
       active: true,
       start: pointer,

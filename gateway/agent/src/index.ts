@@ -1,9 +1,9 @@
-import { SimulatedAdapter } from "@portego/adapter-simulated";
-import { GatewayCloudCredentialsStore } from "@portego/gateway-core";
-import { messageEnvelope } from "@portego/gateway-protocol";
+import { GatewayCloudCredentialsStore, type Inventory } from "@portego/gateway-core";
+import { type GatewayEndpoint, messageEnvelope } from "@portego/gateway-protocol";
 import { createGatewayRuntime, defaultDiscoveryProviders } from "@portego/gateway-runtime";
+import type { DeviceState } from "@portego/home-model";
 import WebSocket from "ws";
-import { handleCloudMessage } from "./runtime.js";
+import { type GatewayDeviceAdapter, handleCloudMessage } from "./runtime.js";
 
 const storedCredentials = await new GatewayCloudCredentialsStore().read();
 const gatewayId = process.env.PORTEGO_GATEWAY_ID ?? storedCredentials?.gatewayId;
@@ -15,7 +15,51 @@ if (!gatewayId || !serverUrl || !gatewayToken) {
 const pairedGatewayId = gatewayId;
 const pairedServerUrl = serverUrl;
 const pairedGatewayToken = gatewayToken;
-const adapter = new SimulatedAdapter(pairedGatewayId);
+const gatewayRuntime = createGatewayRuntime();
+
+function inventoryEndpoints(inventory: Inventory): GatewayEndpoint[] {
+  return inventory.devices.flatMap((device) =>
+    device.endpoints.map((endpoint) => {
+      const nativeId =
+        typeof device.metadata.nativeId === "string" ? device.metadata.nativeId : device.id;
+      const suffix = nativeId
+        .replaceAll(/[^a-zA-Z0-9]/g, "")
+        .slice(-6)
+        .toUpperCase();
+      const endpointName = endpoint.label.startsWith(device.name)
+        ? endpoint.label.slice(device.name.length).trim()
+        : endpoint.label;
+      return {
+        ...endpoint,
+        deviceId: device.id,
+        label: `${device.name} ${suffix} · ${endpointName || endpoint.type}`,
+        protocol: device.protocol,
+        reachable: device.reachable,
+        updatedAt: device.updatedAt,
+      };
+    }),
+  );
+}
+
+const adapter: GatewayDeviceAdapter = {
+  async discover() {
+    return inventoryEndpoints(await gatewayRuntime.inventory());
+  },
+  async execute(endpointId: string, state: DeviceState) {
+    const inventory = await gatewayRuntime.inventory();
+    const device = inventory.devices.find((item) =>
+      item.endpoints.some((endpoint) => endpoint.id === endpointId),
+    );
+    if (!device) throw new Error("The endpoint is not in the gateway inventory.");
+    await gatewayRuntime.execute(device.id, endpointId, state);
+    const refreshed = await gatewayRuntime.inventory();
+    const endpoint = refreshed.devices
+      .find((item) => item.id === device.id)
+      ?.endpoints.find((item) => item.id === endpointId);
+    if (!endpoint) throw new Error("The endpoint disappeared while refreshing its state.");
+    return endpoint.reportedState as DeviceState;
+  },
+};
 
 async function discoverDevices(
   methods: Array<"mdns" | "ssdp" | "manual" | "ble" | "matter">,
@@ -36,6 +80,20 @@ async function discoverDevices(
     ...(host ? { hosts: [host] } : {}),
     includeBle: methods.includes("ble"),
   });
+  for (const candidate of session.candidates) {
+    if (
+      candidate.device?.endpoints.length &&
+      candidate.setup?.status === "ready" &&
+      candidate.setup.safeToAutomate
+    ) {
+      try {
+        await runtime.commission(candidate.id);
+      } catch (error) {
+        candidate.warnings.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+  }
+  const inventory = await runtime.inventory();
   return {
     candidates: session.candidates.map((candidate) => ({
       id: candidate.id,
@@ -55,6 +113,7 @@ async function discoverDevices(
       observationCount: provider.observationCount,
       message: provider.message,
     })),
+    endpoints: inventoryEndpoints(inventory),
   };
 }
 

@@ -151,10 +151,110 @@ def test_gateway_claim_machine_token_and_websocket(tmp_path: Path) -> None:
         with client.websocket_connect(
             "/gateway/ws", headers={"Authorization": f"Bearer {credential['gatewayToken']}"}
         ) as websocket:
+            websocket.send_json(
+                {
+                    "protocolVersion": "0.1",
+                    "messageId": "hello-1",
+                    "gatewayId": credential["gatewayId"],
+                    "sentAt": "2026-09-02T09:00:00Z",
+                    "type": "gateway.hello",
+                    "agentVersion": "0.2.0",
+                    "endpoints": [
+                        {
+                            "id": "endpoint_shelly_light",
+                            "deviceId": "device_shelly",
+                            "nativeId": "light:0",
+                            "label": "Shelly ceiling",
+                            "type": "light",
+                            "protocol": "shelly-rpc",
+                            "reachable": True,
+                            "capabilities": ["on_off", "brightness", "power"],
+                            "readable": True,
+                            "controllable": True,
+                            "reportedState": {"on": False, "brightness": 35, "power": 0},
+                            "metadata": {},
+                            "updatedAt": "2026-09-02T09:00:00Z",
+                        }
+                    ],
+                }
+            )
             websocket.send_json({"type": "gateway.heartbeat"})
             assert websocket.receive_json()["type"] == "cloud.heartbeat.ack"
             gateways = client.get("/api/gateways").json()["gateways"]
             assert gateways[0]["status"] == "online"
+            persisted = client.get("/api/home").json()
+            assert persisted["endpoints"][0]["capabilities"] == ["power", "brightness"]
+            assert persisted["endpoints"][0]["reportedState"] == {
+                "on": False,
+                "brightness": 35,
+            }
+
+            floor = persisted["floors"][0]
+            persisted["rooms"] = [
+                {
+                    "id": "room_living",
+                    "label": "Living room",
+                    "floor": floor["name"],
+                    "x": 80,
+                    "y": 80,
+                    "width": 300,
+                    "height": 240,
+                }
+            ]
+            persisted["devices"] = [
+                {
+                    "id": "device_living_light",
+                    "roomId": "room_living",
+                    "label": "Living light",
+                    "type": "light",
+                    "config": {"mounting": "ceiling", "dimmable": True},
+                    "position": {"x": 200, "y": 180},
+                    "capabilities": ["power", "brightness"],
+                }
+            ]
+            persisted["bindings"] = [
+                {
+                    "id": "binding_living_light",
+                    "deviceId": "device_living_light",
+                    "endpointId": "endpoint_shelly_light",
+                    "createdAt": "2026-09-02T09:00:00Z",
+                }
+            ]
+            base_revision = persisted["revision"]
+            persisted["revision"] += 1
+            assert (
+                client.put(
+                    "/api/home",
+                    headers={"X-Portego-CSRF": csrf},
+                    json={"baseRevision": base_revision, "home": persisted},
+                ).status_code
+                == 200
+            )
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                state_request = executor.submit(
+                    client.post,
+                    "/api/devices/device_living_light/state",
+                    headers={"X-Portego-CSRF": csrf},
+                    json={"on": True, "brightness": 60},
+                )
+                command = websocket.receive_json()
+                assert command["type"] == "cloud.device.set_state"
+                assert command["endpointId"] == "endpoint_shelly_light"
+                websocket.send_json(
+                    {
+                        "type": "gateway.command.result",
+                        "correlationId": command["messageId"],
+                        "endpointId": "endpoint_shelly_light",
+                        "ok": True,
+                        "state": {"on": True, "brightness": 60},
+                    }
+                )
+                controlled = state_request.result(timeout=3)
+                assert controlled.status_code == 200
+                endpoint = controlled.json()["endpoints"][0]
+                assert endpoint["desiredState"] == {"on": True, "brightness": 60}
+                assert endpoint["reportedState"] == {"on": True, "brightness": 60}
 
             with ThreadPoolExecutor(max_workers=1) as executor:
                 discovery_request = executor.submit(

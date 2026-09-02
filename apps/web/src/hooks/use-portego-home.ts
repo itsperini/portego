@@ -203,6 +203,25 @@ export function usePortegoHome(auth: AuthState) {
     return updateHome(homeDocumentSchema.parse(next), false);
   }, [auth.csrfToken, updateHome]);
 
+  const refreshHome = useCallback(async () => {
+    if (!auth.authenticated || !remoteHomeRef.current) return homeRef.current;
+    const next = homeDocumentSchema.parse(
+      await apiRequest<HomeDocument>("/api/home", { cache: "no-store" }),
+    );
+    if (next.revision >= homeRef.current.revision) {
+      setConnectionMode("cloud");
+      setError(null);
+      return updateHome(next, false);
+    }
+    return homeRef.current;
+  }, [auth.authenticated, updateHome]);
+
+  useEffect(() => {
+    if (!auth.authenticated || connectionMode !== "cloud") return;
+    const timer = window.setInterval(() => void refreshHome(), 4_000);
+    return () => window.clearInterval(timer);
+  }, [auth.authenticated, connectionMode, refreshHome]);
+
   const resolveRoomId = useCallback((input: { roomId?: string; roomLabel?: string }) => {
     return (
       input.roomId ??
@@ -316,12 +335,34 @@ export function usePortegoHome(auth: AuthState) {
     [commit],
   );
   const setDeviceState = useCallback(
-    (input: SetDeviceStateInput) =>
-      commit((current) => {
-        const desired = setDesiredDeviceState(current, input);
+    async (input: SetDeviceStateInput) => {
+      const deviceId = resolveDeviceId(input);
+      if (!deviceId) throw new Error("Device not found.");
+      if (auth.authenticated && remoteHomeRef.current) {
+        try {
+          const next = homeDocumentSchema.parse(
+            await apiRequest<HomeDocument>(`/api/devices/${encodeURIComponent(deviceId)}/state`, {
+              method: "POST",
+              csrfToken: auth.csrfToken,
+              body: JSON.stringify({ on: input.on, brightness: input.brightness }),
+            }),
+          );
+          setConnectionMode("cloud");
+          setError(null);
+          return updateHome(next, false);
+        } catch (requestError) {
+          setError(
+            requestError instanceof Error ? requestError.message : "The device command failed.",
+          );
+          throw requestError;
+        }
+      }
+      return commit((current) => {
+        const desired = setDesiredDeviceState(current, { ...input, deviceId });
         return applyReportedState(desired.home, desired.endpoint.id, desired.requestedState);
-      }),
-    [commit],
+      });
+    },
+    [auth.authenticated, auth.csrfToken, commit, resolveDeviceId, updateHome],
   );
 
   const undo = useCallback(async () => {
@@ -385,6 +426,7 @@ export function usePortegoHome(auth: AuthState) {
     getHome: () => homeRef.current,
     importCurrentHome,
     startEmptyHome,
+    refreshHome,
     updateHomeDetails,
     updateFloorDetails,
     removeFloor,

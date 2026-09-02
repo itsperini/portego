@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Bluetooth,
   Check,
+  ChevronDown,
   CircleUserRound,
   ExternalLink,
   HousePlus,
@@ -16,6 +17,7 @@ import {
   RadioTower,
   Router,
   Save,
+  ScanSearch,
   ShieldCheck,
   Sparkles,
   X,
@@ -355,6 +357,7 @@ type GatewayResponse = { gateways: Gateway[]; methods: DiscoveryMethod[] };
 
 type DiscoveryResponse = {
   completed: boolean;
+  endpoints: Array<{ id: string }>;
   candidates: Array<{
     id: string;
     name: string;
@@ -386,10 +389,12 @@ const methodIcons = {
 export function GatewayModal({
   csrfToken,
   initialClaimCode,
+  onInventoryChanged,
   onClose,
 }: {
   csrfToken: string;
   initialClaimCode?: string;
+  onInventoryChanged: () => Promise<unknown>;
   onClose: () => void;
 }) {
   const [data, setData] = useState<GatewayResponse>({ gateways: [], methods: [] });
@@ -442,9 +447,9 @@ export function GatewayModal({
     }
   }
 
-  async function discover(method: DiscoveryMethod["id"]) {
+  async function discover(methods: DiscoveryMethod["id"][], busyKey: string) {
     if (!activeGateway) return;
-    setBusy(method);
+    setBusy(busyKey);
     setError(undefined);
     setMessage(undefined);
     try {
@@ -454,15 +459,16 @@ export function GatewayModal({
           method: "POST",
           csrfToken,
           body: JSON.stringify({
-            methods: [method],
-            ...(method === "manual" && host ? { host } : {}),
+            methods,
+            ...(methods.includes("manual") && host ? { host } : {}),
           }),
         },
       );
       setDiscovery(result);
+      await onInventoryChanged();
       setMessage(
         result.candidates.length > 0
-          ? `Found ${result.candidates.length} candidate device${result.candidates.length === 1 ? "" : "s"}.`
+          ? `Found ${result.candidates.length} candidate device${result.candidates.length === 1 ? "" : "s"}. ${result.endpoints.length} hardware endpoint${result.endpoints.length === 1 ? " is" : "s are"} now available in device settings.`
           : `Scan finished on ${activeGateway.name}; no device candidates were found.`,
       );
     } catch (discoverError) {
@@ -538,43 +544,76 @@ export function GatewayModal({
 
         <section className="gateway-method-panel">
           <span className="gateway-step">02 / Discover</span>
-          <h2>Test a discovery method</h2>
+          <h2>Find devices</h2>
           <p>
-            Each scan runs inside your home network. Portego only receives normalized device
-            results.
+            Search across every available discovery method. The scan runs inside your home network;
+            Portego only receives normalized results.
           </p>
-          <div className="discovery-methods">
-            {data.methods.map((method) => {
-              const Icon = methodIcons[method.id];
-              return (
-                <button
-                  type="button"
-                  key={method.id}
-                  disabled={activeGateway?.status !== "online" || Boolean(busy)}
-                  onClick={() => void discover(method.id)}
-                >
-                  <Icon size={18} />
-                  <span>
-                    <strong>{method.label}</strong>
-                    <small>{method.description}</small>
-                  </span>
-                  {busy === method.id ? (
-                    <LoaderCircle className="is-spinning" size={15} />
-                  ) : (
-                    <ArrowRight size={15} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <label className="manual-host">
-            <span>Optional local address for “Known address”</span>
-            <input
-              value={host}
-              onChange={(event) => setHost(event.target.value)}
-              placeholder="192.168.1.42 or device.local"
-            />
-          </label>
+          <button
+            className="autodiscovery-button"
+            type="button"
+            disabled={activeGateway?.status !== "online" || Boolean(busy)}
+            onClick={() =>
+              void discover(
+                data.methods.filter((method) => method.id !== "manual").map((method) => method.id),
+                "auto",
+              )
+            }
+          >
+            {busy === "auto" ? (
+              <LoaderCircle className="is-spinning" size={20} />
+            ) : (
+              <ScanSearch size={20} />
+            )}
+            <span>
+              <strong>Autodiscovery</strong>
+              <small>Try every automatic method</small>
+            </span>
+            <ArrowRight size={16} />
+          </button>
+          <details className="manual-discovery">
+            <summary>
+              <span>
+                <strong>Manual discovery</strong>
+                <small>Choose one method or enter a known address</small>
+              </span>
+              <ChevronDown size={16} />
+            </summary>
+            <div className="manual-discovery-body">
+              <div className="discovery-methods">
+                {data.methods.map((method) => {
+                  const Icon = methodIcons[method.id];
+                  return (
+                    <button
+                      type="button"
+                      key={method.id}
+                      disabled={activeGateway?.status !== "online" || Boolean(busy)}
+                      onClick={() => void discover([method.id], method.id)}
+                    >
+                      <Icon size={18} />
+                      <span>
+                        <strong>{method.label}</strong>
+                        <small>{method.description}</small>
+                      </span>
+                      {busy === method.id ? (
+                        <LoaderCircle className="is-spinning" size={15} />
+                      ) : (
+                        <ArrowRight size={15} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <label className="manual-host">
+                <span>Optional local address for “Known address”</span>
+                <input
+                  value={host}
+                  onChange={(event) => setHost(event.target.value)}
+                  placeholder="192.168.1.42 or device.local"
+                />
+              </label>
+            </div>
+          </details>
           {discovery ? (
             <div className="discovery-results">
               <div className="discovery-results-heading">
@@ -590,6 +629,9 @@ export function GatewayModal({
                         {[candidate.manufacturer, candidate.model].filter(Boolean).join(" ") ||
                           candidate.protocol ||
                           "Unidentified local device"}
+                        {candidate.endpointCount > 0
+                          ? ` · ${candidate.endpointCount} endpoint${candidate.endpointCount === 1 ? "" : "s"}`
+                          : ""}
                       </small>
                     </span>
                     <em>

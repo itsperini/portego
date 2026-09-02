@@ -1,4 +1,5 @@
-import { deviceEndpointSchema, deviceStateSchema } from "@portego/home-model";
+import { normalizedEndpointSchema } from "@portego/gateway-core";
+import { deviceStateSchema } from "@portego/home-model";
 import { z } from "zod";
 
 export const protocolVersion = "0.1";
@@ -11,10 +12,17 @@ const envelopeSchema = z.object({
   sentAt: isoTimestampSchema,
 });
 
+export const gatewayEndpointSchema = normalizedEndpointSchema.extend({
+  deviceId: z.string().min(1),
+  protocol: z.string().min(1),
+  reachable: z.boolean(),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
 export const gatewayHelloSchema = envelopeSchema.extend({
   type: z.literal("gateway.hello"),
   agentVersion: z.string().min(1),
-  endpoints: z.array(deviceEndpointSchema),
+  endpoints: z.array(gatewayEndpointSchema),
 });
 
 export const gatewayHeartbeatSchema = envelopeSchema.extend({
@@ -24,7 +32,7 @@ export const gatewayHeartbeatSchema = envelopeSchema.extend({
 export const gatewayDiscoveryResultSchema = envelopeSchema.extend({
   type: z.literal("gateway.discovery.result"),
   correlationId: z.string().min(1),
-  endpoints: z.array(deviceEndpointSchema).default([]),
+  endpoints: z.array(gatewayEndpointSchema).default([]),
   candidates: z
     .array(
       z.object({
@@ -104,6 +112,7 @@ export const cloudMessageSchema = z.discriminatedUnion("type", [
 export type GatewayMessage = z.infer<typeof gatewayMessageSchema>;
 export type CloudMessage = z.infer<typeof cloudMessageSchema>;
 export type GatewayCommandResult = z.infer<typeof gatewayCommandResultSchema>;
+export type GatewayEndpoint = z.infer<typeof gatewayEndpointSchema>;
 
 export function messageEnvelope(gatewayId: string): {
   protocolVersion: typeof protocolVersion;

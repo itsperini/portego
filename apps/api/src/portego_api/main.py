@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import Settings, get_settings
 from .database import create_database
 from .gateway_relay import CloudflareRelayClient, GatewayConnections
+from .homes import apply_gateway_state, merge_gateway_endpoints
 from .models import Base, Gateway, Home, utcnow
 from .routes import router
 from .security import decode_gateway_token
@@ -102,6 +103,53 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await session.commit()
         return {"ok": True}
 
+    @app.post("/internal/cloudflare/gateways/{gateway_id}/event", include_in_schema=False)
+    async def cloudflare_gateway_event(gateway_id: str, request: Request) -> dict:
+        expected = configured.cloudflare_relay_secret
+        if not expected or request.headers.get("authorization") != f"Bearer {expected}":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+        message = await request.json()
+        if not isinstance(message, dict) or message.get("type") not in {
+            "gateway.hello",
+            "gateway.state",
+        }:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Unsupported gateway event",
+            )
+        async with app.state.session_factory() as session:
+            gateway = await session.get(Gateway, gateway_id)
+            if gateway is None or gateway.revoked_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Gateway not found",
+                )
+            home = await session.get(Home, gateway.home_id)
+            if home is not None and message["type"] == "gateway.hello":
+                if isinstance(message.get("agentVersion"), str):
+                    gateway.agent_version = message["agentVersion"][:40]
+                home.document = merge_gateway_endpoints(
+                    home.document,
+                    gateway.id,
+                    message.get("endpoints"),
+                )
+                home.revision = home.document["revision"]
+            if home is not None and message["type"] == "gateway.state":
+                try:
+                    home.document = apply_gateway_state(
+                        home.document,
+                        str(message.get("endpointId", "")),
+                        message.get("state"),
+                    )
+                    home.revision = home.document["revision"]
+                except ValueError:
+                    pass
+            gateway.status = "online"
+            gateway.last_seen_at = utcnow()
+            await update_gateway_document(session, gateway, True)
+            await session.commit()
+        return {"ok": True}
+
     async def mark_gateway_offline(gateway_id: str) -> None:
         async with app.state.session_factory() as session:
             gateway = await session.get(Gateway, gateway_id)
@@ -155,6 +203,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         message.get("agentVersion"), str
                     ):
                         gateway.agent_version = message["agentVersion"][:40]
+                    home = await session.get(Home, gateway.home_id)
+                    if home is not None and message["type"] == "gateway.hello":
+                        home.document = merge_gateway_endpoints(
+                            home.document,
+                            gateway.id,
+                            message.get("endpoints"),
+                        )
+                        home.revision = home.document["revision"]
+                    if home is not None and message["type"] == "gateway.state":
+                        try:
+                            home.document = apply_gateway_state(
+                                home.document,
+                                str(message.get("endpointId", "")),
+                                message.get("state"),
+                            )
+                            home.revision = home.document["revision"]
+                        except ValueError:
+                            pass
+                    if (
+                        home is not None
+                        and message["type"] == "gateway.command.result"
+                        and message.get("ok") is True
+                        and isinstance(message.get("state"), dict)
+                    ):
+                        try:
+                            home.document = apply_gateway_state(
+                                home.document,
+                                str(message.get("endpointId", "")),
+                                message["state"],
+                            )
+                            home.revision = home.document["revision"]
+                        except ValueError:
+                            pass
                     await update_gateway_document(session, gateway, True)
                     await session.commit()
                 app.state.gateway_connections.resolve(gateway_id, message)

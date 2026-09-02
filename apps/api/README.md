@@ -1,5 +1,14 @@
 # Portego API
 
+This FastAPI service is Portego's authoritative backend. It persists the home,
+gateway endpoint inventory and bindings, relays device commands, and applies
+confirmed state reported by the gateway.
+
+The browser sends device state changes to
+`POST /api/devices/{device_id}/state`. The API resolves the bound endpoint,
+forwards a short-lived command over the authenticated gateway WebSocket, and
+returns the updated home only after the gateway acknowledges the real state.
+
 The FastAPI service owns private-beta accounts, browser sessions, persistent
 homes, gateway claims, direct gateway connections, and the optional Cloudflare
 relay callback.

@@ -1,15 +1,21 @@
-import type { DeviceAdapter } from "@portego/adapter-simulated";
 import {
   type CloudMessage,
   cloudMessageSchema,
+  type GatewayEndpoint,
   isExpired,
   messageEnvelope,
 } from "@portego/gateway-protocol";
+import type { DeviceState } from "@portego/home-model";
+
+export interface GatewayDeviceAdapter {
+  discover(): Promise<GatewayEndpoint[]>;
+  execute(endpointId: string, state: DeviceState): Promise<DeviceState>;
+}
 
 export async function handleCloudMessage(
   rawMessage: unknown,
   gatewayId: string,
-  adapter: DeviceAdapter,
+  adapter: GatewayDeviceAdapter,
   discover?: (
     methods: Array<"mdns" | "ssdp" | "manual" | "ble" | "matter">,
     host?: string,
@@ -43,7 +49,7 @@ export async function handleCloudMessage(
 async function executeDeviceCommand(
   message: Extract<CloudMessage, { type: "cloud.device.set_state" }>,
   gatewayId: string,
-  adapter: DeviceAdapter,
+  adapter: GatewayDeviceAdapter,
 ): Promise<unknown[]> {
   if (isExpired(message.expiresAt)) {
     return [

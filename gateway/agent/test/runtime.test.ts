@@ -1,4 +1,3 @@
-import { SimulatedAdapter } from "@portego/adapter-simulated";
 import { commandExpiry, messageEnvelope } from "@portego/gateway-protocol";
 import { describe, expect, it } from "vitest";
 import { handleCloudMessage } from "../src/runtime.js";
@@ -14,7 +13,10 @@ describe("gateway runtime", () => {
         expiresAt: commandExpiry(),
       },
       "gateway_sim_1",
-      new SimulatedAdapter(),
+      {
+        discover: async () => [],
+        execute: async (_endpointId, state) => state,
+      },
     );
 
     expect(messages).toHaveLength(2);

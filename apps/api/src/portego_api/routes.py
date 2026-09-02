@@ -8,9 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import Settings
 from .database import session_dependency
-from .homes import empty_home, import_home, merge_canvas_update
+from .homes import (
+    apply_gateway_state,
+    empty_home,
+    import_home,
+    merge_canvas_update,
+    merge_gateway_endpoints,
+)
 from .models import Gateway, GatewayClaim, Home, UserSession, utcnow
 from .schemas import (
+    DeviceStateInput,
     GatewayClaimApproveInput,
     GatewayClaimPollInput,
     GatewayClaimStartInput,
@@ -369,9 +376,94 @@ async def discover_from_gateway(
         )
     except (LookupError, ConnectionError, TimeoutError) as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    await session.refresh(home)
+    home.document = merge_gateway_endpoints(home.document, gateway.id, result.get("endpoints"))
+    home.revision = home.document["revision"]
+    await session.commit()
     return {
         "completed": True,
         "messageId": message["messageId"],
         "candidates": result.get("candidates", []),
         "providers": result.get("providers", []),
+        "endpoints": home.document["endpoints"],
     }
+
+
+@router.post("/api/devices/{device_id}/state")
+async def set_device_state(
+    device_id: str,
+    body: DeviceStateInput,
+    request: Request,
+    context: AuthContext = Depends(require_csrf),
+    session: AsyncSession = Depends(session_dependency),
+) -> dict:
+    home = await home_for_user(session, context.user.id)
+    if home is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No home is saved yet.")
+    document = home.document
+    device = next((item for item in document.get("devices", []) if item["id"] == device_id), None)
+    if device is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found.")
+    binding = next(
+        (item for item in document.get("bindings", []) if item["deviceId"] == device_id), None
+    )
+    endpoint = next(
+        (
+            item
+            for item in document.get("endpoints", [])
+            if binding and item["id"] == binding["endpointId"]
+        ),
+        None,
+    )
+    if endpoint is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Device is not bound to a hardware endpoint.",
+        )
+    if not endpoint.get("reachable"):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The endpoint is offline.")
+    if body.on is not None and "power" not in endpoint.get("capabilities", []):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The endpoint does not support on/off control.",
+        )
+    if body.brightness is not None and "brightness" not in endpoint.get("capabilities", []):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The endpoint does not support brightness control.",
+        )
+    gateway = await session.get(Gateway, endpoint["gatewayId"])
+    if gateway is None or gateway.home_id != home.id or gateway.revoked_at:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gateway not found.")
+    requested_state = body.model_dump(exclude_none=True)
+    message = {
+        "protocolVersion": "0.1",
+        "type": "cloud.device.set_state",
+        "messageId": token_urlsafe(18),
+        "gatewayId": gateway.id,
+        "sentAt": utcnow().isoformat(),
+        "expiresAt": (utcnow() + timedelta(seconds=10)).isoformat(),
+        "endpointId": endpoint["id"],
+        "state": requested_state,
+    }
+    try:
+        result = await request.app.state.gateway_connections.send_and_wait(
+            gateway.id, message, timeout=12
+        )
+    except (LookupError, ConnectionError, TimeoutError) as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    if result.get("ok") is not True or not isinstance(result.get("state"), dict):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(result.get("error") or "The gateway rejected the command."),
+        )
+    await session.refresh(home)
+    home.document = apply_gateway_state(
+        home.document,
+        endpoint["id"],
+        result["state"],
+        requested_state,
+    )
+    home.revision = home.document["revision"]
+    await session.commit()
+    return home.document

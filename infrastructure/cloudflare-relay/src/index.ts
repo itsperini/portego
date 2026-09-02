@@ -92,6 +92,20 @@ export class GatewayRelay implements DurableObject {
     );
   }
 
+  async #reportEvent(gatewayId: string, message: unknown): Promise<void> {
+    await fetch(
+      `${this.#env.PORTEGO_API_CALLBACK_URL.replace(/\/$/, "")}/internal/cloudflare/gateways/${encodeURIComponent(gatewayId)}/event`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.#env.PORTEGO_RELAY_SHARED_SECRET}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      },
+    );
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname.endsWith("/connect")) {
@@ -139,6 +153,12 @@ export class GatewayRelay implements DurableObject {
         socket.send(
           JSON.stringify({ type: "cloud.heartbeat.ack", receivedAt: new Date().toISOString() }),
         );
+      }
+      if (message.type === "gateway.hello" || message.type === "gateway.state") {
+        const attachment = socket.deserializeAttachment() as ConnectionAttachment | null;
+        if (attachment?.gatewayId) {
+          this.#state.waitUntil(this.#reportEvent(attachment.gatewayId, message));
+        }
       }
       if (message.correlationId) {
         const pending = this.#pending.get(message.correlationId);
