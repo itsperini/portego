@@ -1815,6 +1815,51 @@ a:focus-visible,
   background: var(--teal);
 }
 
+.portal-access-link {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 12px 9px 14px;
+  border: 1px solid rgba(35, 125, 120, 0.46);
+  border-radius: 4px;
+  color: var(--ink-strong);
+  background: linear-gradient(100deg, var(--teal-soft), rgba(255, 255, 255, 0.9));
+  text-decoration: none;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.portal-access-link span {
+  display: grid;
+  gap: 2px;
+}
+
+.portal-access-link strong {
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.portal-access-link small {
+  color: var(--slate);
+  font-family: var(--font-mono);
+  font-size: 7px;
+}
+
+.portal-access-link:hover {
+  border-color: var(--teal);
+  box-shadow: 0 7px 20px rgba(35, 125, 120, 0.12);
+  transform: translateY(-1px);
+}
+
+.portal-access-link:focus-visible {
+  outline: 2px solid rgba(35, 125, 120, 0.28);
+  outline-offset: 2px;
+}
+
 .portal-secondary {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.85);

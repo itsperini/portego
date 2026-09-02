@@ -6,6 +6,7 @@ import {
   Bluetooth,
   Check,
   CircleUserRound,
+  ExternalLink,
   HousePlus,
   KeyRound,
   LoaderCircle,
@@ -118,8 +119,20 @@ export function LoginModal({
           Log in
           {!busy ? <ArrowRight size={15} /> : null}
         </button>
+        <a
+          className="portal-access-link"
+          href="https://x.com/itsperini"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>
+            <strong>Request private access</strong>
+            <small>Send a DM to @itsperini on X</small>
+          </span>
+          <ExternalLink size={15} aria-hidden="true" />
+        </a>
       </form>
-      <p className="portal-footnote">Accounts are currently created by the Portego team.</p>
+      <p className="portal-footnote">Private-beta accounts are approved individually.</p>
     </ModalShell>
   );
 }
